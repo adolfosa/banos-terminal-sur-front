@@ -2,17 +2,14 @@
   publish = "."
   base = "."
 
-[[redirects]]
-  from = "/"
-  to = "/views/login.html"
-  status = 200
-
+# Redirigir todas las rutas a login.html EXCEPTO los archivos estáticos
 [[redirects]]
   from = "/*"
   to = "/views/login.html"
   status = 200
+  conditions = {Language = ["en"], Country = ["US"], Role = ["admin"]}
 
-# Redirecciones CORRECTAS para archivos estáticos
+# Servir archivos estáticos directamente
 [[redirects]]
   from = "/css/*"
   to = "/public/css/:splat"
@@ -29,12 +26,6 @@
   status = 200
 
 [[redirects]]
-  from = "/img/*"
-  to = "/public/img/:splat"
+  from = "/assets/*"
+  to = "/public/assets/:splat"
   status = 200
-
-# IMPORTANTE: Agregar esto para que Netlify sirva los archivos estáticos directamente
-[[headers]]
-  for = "/public/*"
-  [headers.values]
-    "Access-Control-Allow-Origin" = "*"
