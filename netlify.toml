@@ -12,7 +12,7 @@
   to = "/views/login.html"
   status = 200
 
-# Para archivos estáticos (CSS, JS, imágenes)
+# Redirecciones CORRECTAS para archivos estáticos
 [[redirects]]
   from = "/css/*"
   to = "/public/css/:splat"
@@ -27,3 +27,14 @@
   from = "/images/*"
   to = "/public/images/:splat"
   status = 200
+
+[[redirects]]
+  from = "/img/*"
+  to = "/public/img/:splat"
+  status = 200
+
+# IMPORTANTE: Agregar esto para que Netlify sirva los archivos estáticos directamente
+[[headers]]
+  for = "/public/*"
+  [headers.values]
+    "Access-Control-Allow-Origin" = "*"
