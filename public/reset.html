@@ -81,6 +81,12 @@
         .back-to-login a:hover {
             text-decoration: underline;
         }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 15px;
+        }
     </style>
 </head>
 <body>
@@ -98,6 +104,9 @@
             
             <div id="errorMessage" class="error-message"></div>
             <div id="successMessage" class="success-message"></div>
+            <div id="loading" class="loading">
+                <p>Procesando, por favor espere...</p>
+            </div>
             
             <div id="tokenSection">
                 <div class="info-message">
@@ -152,19 +161,25 @@
             });
         }
 
-        // Verificar token en la URL
+        // Variables globales
+        let userData = null;
+
+        // Verificar token en la URL y obtener datos del usuario
         document.addEventListener('DOMContentLoaded', function() {
             const urlParams = new URLSearchParams(window.location.search);
             const token = urlParams.get('token');
             
             if (!token) {
                 // No hay token, redirigir al login
-                window.location.href = '/login.html';
+                showError('Token no válido o ha expirado. Redirigiendo...');
+                setTimeout(() => {
+                    window.location.href = '/login.html';
+                }, 3000);
                 return;
             }
             
-            // Verificar si el token es válido
-            verifyToken(token);
+            // Verificar si el token es válido y obtener datos del usuario
+            verifyTokenAndGetUserData(token);
             
             // Manejar el envío del formulario
             const resetForm = document.getElementById('resetForm');
@@ -187,50 +202,52 @@
                 }
                 
                 // Enviar solicitud para restablecer contraseña
-                try {
-                    const response = await fetch('http://localhost:3000/api/reset-password', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({ newPassword })
-                    });
-                    
-                    const result = await response.json();
-                    
-                    if (response.ok) {
-                        showSuccess('Contraseña restablecida correctamente. Redirigiendo al login...');
-                        setTimeout(() => {
-                            window.location.href = '/login.html';
-                        }, 3000);
-                    } else {
-                        showError(result.error || 'Error al restablecer la contraseña.');
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                    showError('Ocurrió un error en el servidor.');
-                }
+                await resetPassword(newPassword, token);
             });
         });
         
-        // Función para verificar el token
-        async function verifyToken(token) {
+        // Función para restablecer la contraseña
+        async function resetPassword(newPassword, token) {
             try {
-                const response = await fetch('http://localhost:3000/api/verify-token', {
-                    method: 'GET',
+                showLoading(true);
+                
+                if (!userData) {
+                    throw new Error('No se encontraron datos del usuario');
+                }
+                
+                // Preparar datos para enviar al endpoint de actualización
+                const userUpdateData = {
+                    id: userData.id,
+                    username: userData.username,
+                    email: userData.email,
+                    role: userData.role,
+                    password: newPassword
+                };
+                
+                const response = await fetch('https://backend-banios.dev-wit.com/api/users/', {
+                    method: 'PUT',
                     headers: {
+                        'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
-                    }
+                    },
+                    body: JSON.stringify(userUpdateData)
                 });
                 
-                if (!response.ok) {
-                    // Token inválido, redirigir al login
-                    window.location.href = '/login.html';
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showSuccess('Contraseña restablecida correctamente. Redirigiendo al login...');
+                    setTimeout(() => {
+                        window.location.href = '/login.html';
+                    }, 3000);
+                } else {
+                    throw new Error(result.error || 'Error al restablecer la contraseña');
                 }
             } catch (error) {
-                console.error('Error verificando token:', error);
-                window.location.href = '/login.html';
+                console.error('Error:', error);
+                showError(error.message || 'Ocurrió un error en el servidor.');
+            } finally {
+                showLoading(false);
             }
         }
         
@@ -265,6 +282,11 @@
             document.querySelectorAll('input, button').forEach(element => {
                 element.disabled = true;
             });
+        }
+        
+        // Función para mostrar/ocultar loading
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
         }
     </script>
 </body>
