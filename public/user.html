@@ -146,31 +146,25 @@
     <!-- Información del usuario -->
     <div class="profile-card">
       <div class="profile-header">
-        <div class="profile-avatar">JS</div>
+        <div class="profile-avatar" id="profileAvatar">U</div>
         <div class="profile-info">
-          <h2>Juan Sánchez</h2>
-          <p>Administrador</p>
+            <h2 id="profileName">Usuario</h2>
+            <p id="profileRole">Rol</p>
         </div>
-      </div>
+        </div>
       
       <div class="row">
         <div class="col-md-6">
-          <div class="mb-3">
+            <div class="mb-3">
             <label class="form-label">Nombre de usuario</label>
-            <p class="form-control-plaintext">jsanchez</p>
-          </div>
-          <div class="mb-3">
+            <p class="form-control-plaintext" id="profileUsername">---</p>
+            </div>
+            <div class="mb-3">
             <label class="form-label">Correo electrónico</label>
-            <p class="form-control-plaintext">jsanchez@empresa.com</p>
-          </div>
+            <p class="form-control-plaintext" id="profileEmail">---</p>
+            </div>
         </div>
-        <div class="col-md-6">          
-          <div class="mb-3">
-            <label class="form-label">Fecha de registro</label>
-            <p class="form-control-plaintext">15/03/2023</p>
-          </div>
         </div>
-      </div>
     </div>
   </main>
 
@@ -246,6 +240,31 @@
 
     $('#btnVolver').on('click', () => {
         window.location.href = '/home.html';
+    });
+
+    $(document).ready(function () {
+        // Recuperar usuario desde sessionStorage
+        const user = JSON.parse(sessionStorage.getItem("usuario"));
+
+        if (user) {
+        // Avatar: primeras letras del nombre de usuario
+        const avatarText = user.username
+            .split(" ")
+            .map(word => word[0])
+            .join("")
+            .toUpperCase();
+
+        $("#profileAvatar").text(avatarText);
+        $("#profileName").text(user.username);
+        $("#profileRole").text(user.role);
+        $("#profileUsername").text(user.username);
+        $("#profileEmail").text(user.email);
+
+        } else {
+        $("#mensajePerfil").html(
+            `<div class="alert alert-warning">No hay datos de sesión. Por favor inicia sesión nuevamente.</div>`
+        );
+        }
     });
   </script>
 </body>
