@@ -29,7 +29,26 @@ const api = Number(serviciosDisponibles?.[tipo]?.precio);
 
 async function cargarServicios() {
   try {
-    const res = await fetch('https://backend-banios.dev-wit.com/api/servicios');
+    // Obtener el token del session storage
+    const authToken = sessionStorage.getItem('authToken');
+    
+    if (!authToken) {
+      throw new Error('No se encontró token de autenticación');
+    }
+
+    const res = await fetch('https://backend-banios.dev-wit.com/api/services', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    // Verificar si la respuesta es exitosa
+    if (!res.ok) {
+      throw new Error(`Error HTTP: ${res.status}`);
+    }
+    
     const data = await res.json();
 
     if (!data.success) throw new Error('No se pudieron cargar los servicios');
@@ -103,7 +122,7 @@ async function cargarServicios() {
 
   } catch (err) {
     console.error('Error al cargar servicios:', err);
-    alert('Error al cargar servicios disponibles.');
+    alert('Error al cargar servicios disponibles: ' + err.message);
   }
 }
 
