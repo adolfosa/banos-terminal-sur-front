@@ -29,12 +29,8 @@ const api = Number(serviciosDisponibles?.[tipo]?.precio);
 
 async function cargarServicios() {
   try {
-    // Obtener el token del session storage
     const token = sessionStorage.getItem('authToken');
-    
-    if (!token) {
-      throw new Error('No se encontró token de autenticación');
-    }
+    if (!token) throw new Error('No se encontró token de autenticación');
 
     const res = await fetch('https://backend-banios.dev-wit.com/api/services', {
       method: 'GET',
@@ -43,44 +39,41 @@ async function cargarServicios() {
         'Content-Type': 'application/json'
       }
     });
-    
-    // Verificar si la respuesta es exitosa
-    if (!res.ok) {
-      throw new Error(`Error HTTP: ${res.status}`);
-    }
-    
+
+    if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
+
     const data = await res.json();
 
-    if (!data.success) throw new Error('No se pudieron cargar los servicios');
+    // Ahora la API devuelve los servicios en data.data
+    if (!Array.isArray(data.data)) throw new Error('Formato inesperado en respuesta de servicios');
 
     serviciosDisponibles = {};
 
-    // Primero llenar serviciosDisponibles
-    data.servicios.forEach(s => {
+    data.data.forEach(s => {
       serviciosDisponibles[s.tipo] = {
-        precio: parseFloat(s.precio)
+        id: s.id,
+        nombre: s.nombre,
+        precio: parseFloat(s.precio),
+        estado: s.estado
       };
     });
 
-    // Luego generar los botones
     const contenedor = document.getElementById("btns-container");
     contenedor.innerHTML = "";
 
     Object.entries(serviciosDisponibles).forEach(([tipo, info]) => {
-      // Generar clase dinámica según el tipo
       const claseTipo = `btn-genera-${tipo.toLowerCase()}`;
 
       const btn = document.createElement("button");
       btn.className = `${claseTipo} lg-button generarQR`;
       btn.setAttribute("data-tipo", tipo);
       btn.innerHTML = `
-        ${tipo} <br />
+        ${info.nombre} <br />
         <span class="precio">$${info.precio.toLocaleString("es-CL")}</span>
       `;
       contenedor.appendChild(btn);
     });
 
-    // Reasignar eventos a los botones generados
     document.querySelectorAll(".generarQR").forEach((btn) => {
       btn.addEventListener("click", (e) => {
         e.preventDefault();

@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (response.ok) {
           // Guardar token y usuario en sessionStorage
           sessionStorage.setItem('authToken', result.token);
-          sessionStorage.setItem('usuario', JSON.stringify(result.usuario));
+          sessionStorage.setItem('usuario', JSON.stringify(result.user));
 
           // Redirigir al home
           window.location.href = 'home.html';
