@@ -44,6 +44,66 @@ document.addEventListener('DOMContentLoaded', () => {
       cerrarSesion();
     });
   }
+
+  // Manejo del enlace "Olvidé mi contraseña"
+  const olvidoContrasena = document.getElementById('olvidoContrasena');
+  if (olvidoContrasena) {
+    olvidoContrasena.addEventListener('click', function(e) {
+      e.preventDefault();
+      // Mostrar modal para recuperar contraseña
+      const modal = document.getElementById('modalRecuperar');
+      if (modal) modal.style.display = 'flex';
+    });
+  }
+
+  // Manejo del formulario de recuperación de contraseña
+  const formRecuperar = document.getElementById('formRecuperar');
+  if (formRecuperar) {
+    formRecuperar.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const email = document.getElementById('emailRecuperar').value;
+      
+      try {
+        const response = await fetch('http://localhost:3000/api/recuperar-contrasena', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          alert(result.message || 'Se ha enviado un correo para restablecer tu contraseña');
+          const modal = document.getElementById('modalRecuperar');
+          if (modal) modal.style.display = 'none';
+          formRecuperar.reset();
+        } else {
+          alert(result.error || 'Error al procesar la solicitud');
+        }
+      } catch (err) {
+        console.error('Error al recuperar contraseña:', err);
+        alert('Ocurrió un error en el servidor');
+      }
+    });
+  }
+
+  // Cerrar modal al hacer clic en la X
+  const closeModal = document.querySelector('.close');
+  if (closeModal) {
+    closeModal.addEventListener('click', function() {
+      const modal = document.getElementById('modalRecuperar');
+      if (modal) modal.style.display = 'none';
+    });
+  }
+
+  // Cerrar modal al hacer clic fuera del contenido
+  window.addEventListener('click', function(event) {
+    const modal = document.getElementById('modalRecuperar');
+    if (event.target === modal && modal) {
+      modal.style.display = 'none';
+    }
+  });
 });
 
 // Función para cerrar sesión

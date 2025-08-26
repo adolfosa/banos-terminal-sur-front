@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <title>Login Pullman</title>
-    <link rel="icon" type="image/svg+xml" href="/public/images/icono.png" />
+    <link rel="icon" type="image/svg+xml" href="/images/icono.png" />
     <link href="/css/login.css" rel="stylesheet" />
     <link href="/css/teclado.css" rel="stylesheet" />
     <!-- simple keyboard -->
@@ -33,8 +33,29 @@
         <div class="text-center">
           <button type="submit" class="ingresar-button">Ingresar</button>
         </div>
+        <!-- Enlace para olvidé mi contraseña -->
+        <div class="olvido-contrasena">
+          <a href="#" id="olvidoContrasena">¿Olvidaste tu contraseña?</a>
+        </div>
       </form>
     </main> 
+
+    <!-- Modal para recuperar contraseña -->
+    <div id="modalRecuperar" class="modal">
+      <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Recuperar Contraseña</h2>
+        <p>Ingresa tu correo electrónico para restablecer tu contraseña.</p>
+        <form id="formRecuperar">
+          <div class="form-group">
+            <input type="email" id="emailRecuperar" required class="user-input usar-teclado" placeholder="Correo electrónico" />
+          </div>
+          <div class="text-center">
+            <button type="submit" class="ingresar-button">Enviar</button>
+          </div>
+        </form>
+      </div>
+    </div>
 
     <button onclick="apagarSistema()" class="btn btn-danger" style="position:fixed; bottom:10px; left:10px; z-index:1000;">Apagar</button>  
     
@@ -60,17 +81,19 @@
 
     <!-- Scripts para teclado -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/simple-keyboard/3.8.67/index.min.js"></script>
-    <script src="/public/js/teclado.js"></script>
+    <script src="/js/teclado.js"></script>
     <script>
-      tecladoVirtual.init();
+      // Inicializar teclado virtual
+      if (typeof tecladoVirtual !== 'undefined') {
+        tecladoVirtual.init();
 
-      // Activar el teclado en cualquier input con clase 'usar-teclado'
-      document.querySelectorAll('.usar-teclado').forEach(input => {
-        input.addEventListener('focus', () => {
-          tecladoVirtual.show(input);
+        // Activar el teclado en cualquier input con clase 'usar-teclado'
+        document.querySelectorAll('.usar-teclado').forEach(input => {
+          input.addEventListener('focus', () => {
+            tecladoVirtual.show(input);
+          });
         });
-      });
+      }
     </script>
-
   </body>
 </html>

@@ -117,3 +117,85 @@ nav h1 {
   color: #2699fb;
   font-size: 14px;
 }
+
+#formRecuperar .form-group {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+#emailRecuperar {
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+.olvido-contrasena {
+  text-align: center;
+  margin-top: 15px;
+}
+
+.olvido-contrasena a {
+  color: #2699fb;
+  text-decoration: none;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.olvido-contrasena a:hover {
+  text-decoration: underline;
+}
+
+.modal {
+  position: fixed;
+  z-index: 10000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.5);
+  display: none;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  background-color: #fefefe;
+  padding: 30px;
+  border: 3px solid #ff5600;
+  border-radius: 20px;
+  width: 400px;
+  max-width: 80%;
+  position: relative;
+}
+
+.close {
+  color: #aaa;
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  cursor: pointer;
+}
+
+.close:hover,
+.close:focus {
+  color: #ff5600;
+  text-decoration: none;
+}
+
+.modal-content h2 {
+  color: #ff5600;
+  text-align: center;
+  margin-bottom: 15px;
+  font: normal normal bold 24px/28px Arial;
+}
+
+.modal-content p {
+  color: #2699fb;
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
