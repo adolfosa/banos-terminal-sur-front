@@ -30,16 +30,16 @@ const api = Number(serviciosDisponibles?.[tipo]?.precio);
 async function cargarServicios() {
   try {
     // Obtener el token del session storage
-    const authToken = sessionStorage.getItem('authToken');
+    const token = sessionStorage.getItem('authToken');
     
-    if (!authToken) {
+    if (!token) {
       throw new Error('No se encontró token de autenticación');
     }
 
     const res = await fetch('https://backend-banios.dev-wit.com/api/services', {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${authToken}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     });
