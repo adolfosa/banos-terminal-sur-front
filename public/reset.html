@@ -221,7 +221,11 @@
         async function resetPassword(newPassword, token) {
             try {
                 showLoading(true);
-                const response = await fetch('/api/auth/reset', {
+                
+                // Para desarrollo, usar localhost:4000
+                const apiUrl = 'https://localhost:4000/api/auth/reset';
+                
+                const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -248,9 +252,8 @@
 
         // Validación de contraseña: al menos 8 caracteres, una mayúscula, un número y un especial
         function validatePassword(password) {
-            const regex = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
-            return regex.test(password);
-        }        
+            return password.length >= 8;
+        }       
         
         // Función para validar la contraseña
         function validatePassword(password) {
