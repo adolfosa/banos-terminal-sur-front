@@ -1,31 +1,15 @@
 [build]
-  publish = "."
-  base = "."
+  publish = "public"
+  base = "/"
 
-# Redirigir todas las rutas a login.html EXCEPTO los archivos estáticos
+# Opcional: Si quieres que login.html sea la página principal
+[[redirects]]
+  from = "/"
+  to = "/login.html"
+  status = 200
+
+# Opcional: Si tienes un SPA (Single Page Application)
 [[redirects]]
   from = "/*"
-  to = "/views/login.html"
-  status = 200
-  conditions = {Language = ["en"], Country = ["US"], Role = ["admin"]}
-
-# Servir archivos estáticos directamente
-[[redirects]]
-  from = "/css/*"
-  to = "/public/css/:splat"
-  status = 200
-
-[[redirects]]
-  from = "/js/*"
-  to = "/public/js/:splat"
-  status = 200
-
-[[redirects]]
-  from = "/images/*"
-  to = "/public/images/:splat"
-  status = 200
-
-[[redirects]]
-  from = "/assets/*"
-  to = "/public/assets/:splat"
+  to = "/login.html"
   status = 200
