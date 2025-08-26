@@ -118,7 +118,7 @@
                     <input type="password" id="newPassword" required class="user-input usar-teclado" 
                            placeholder="Ingresa tu nueva contraseña" />
                     <div class="password-rules">
-                        La contraseña debe tener al menos 8 caracteres, incluir una mayúscula, un número y un carácter especial.
+                        La contraseña debe tener al menos 6 caracteres.
                     </div>
                 </div>
                 
@@ -250,16 +250,10 @@
             }
         }
 
-        // Validación de contraseña: al menos 8 caracteres, una mayúscula, un número y un especial
+        // Validación de contraseña: al menos 6 caracteres
         function validatePassword(password) {
-            return password.length >= 8;
+            return password.length >= 6;
         }       
-        
-        // Función para validar la contraseña
-        function validatePassword(password) {
-            // Solo longitud mínima de 8 caracteres
-            return password.length >= 8;
-        }
         
         // Función para mostrar mensaje de error
         function showError(message) {
