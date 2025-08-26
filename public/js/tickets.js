@@ -29,7 +29,7 @@ const api = Number(serviciosDisponibles?.[tipo]?.precio);
 
 async function cargarServicios() {
   try {
-    const res = await fetch('http://localhost:3000/api/servicios');
+    const res = await fetch('https://backend-banios.dev-wit.com/api/servicios');
     const data = await res.json();
 
     if (!data.success) throw new Error('No se pudieron cargar los servicios');

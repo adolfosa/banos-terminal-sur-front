@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const password = document.getElementById('password').value;
 
       try {
-        const response = await fetch('http://localhost:3000/api/login', {
+        const response = await fetch('https://backend-banios.dev-wit.com/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const email = document.getElementById('emailRecuperar').value;
       
       try {
-        const response = await fetch('https://localhost:4000/api/auth/forgot', {
+        const response = await fetch('https://backend-banios.dev-wit.com/api/auth/forgot', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email })
