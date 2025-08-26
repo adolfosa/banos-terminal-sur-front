@@ -10,12 +10,11 @@ app.use(express.json());
 
 // Servir archivos estáticos desde "public"
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.static(path.join(__dirname, 'views')));
 
 
 // Ruta para mostrar el login (index.html dentro de views)
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'login.html'));
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
 // Iniciar servidor
