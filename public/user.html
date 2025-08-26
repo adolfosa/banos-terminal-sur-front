@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Perfil de Usuario</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="icon" type="image/svg+xml" href="/images/icono.png" />
+  <link href="/css/caja.css" rel="stylesheet" />
+  <link href="/css/teclado.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/simple-keyboard/3.8.67/css/index.min.css"> 
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <style>
+    body {
+      display: flex;
+      min-height: 100vh;
+      background-color: #f1f9ff;
+    }
+
+    .sidebar {
+      width: 280px;
+      background-color: #bce0fd;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      padding: 2rem 1rem;
+    }
+
+    .sidebar h1 {
+      font-size: 1.8rem;
+      color: #2699fb;
+      font-weight: bold;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    .sidebar button {
+      margin-bottom: 1rem;
+      width: 100%;
+    }
+
+    .content {
+      flex-grow: 1;
+      padding: 2rem;
+    }
+
+    .kpi-box {
+      background-color: #eef4fa;
+      border-left: 6px solid #ff5600;
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .kpi-box h2 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+      color: #ff5600;
+    }
+
+    .table-card {
+      background-color: #fff;
+      border-radius: 0.5rem;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      overflow: hidden;
+    }
+
+    .table-card-header {
+      background-color: #2699fb;
+      color: #fff;
+      padding: 1rem;
+      font-weight: bold;
+    }
+
+    .table-responsive {
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    
+    .profile-card {
+      background-color: #fff;
+      border-radius: 0.5rem;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+    
+    .profile-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+    
+    .profile-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background-color: #2699fb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 2rem;
+      font-weight: bold;
+      margin-right: 1.5rem;
+    }
+    
+    .profile-info h2 {
+      color: #2699fb;
+      margin-bottom: 0.2rem;
+    }
+    
+    .profile-info p {
+      color: #6c757d;
+      margin-bottom: 0;
+    }
+    
+    .form-label {
+      font-weight: 500;
+      color: #2699fb;
+    }
+    
+    .btn-primary {
+      background-color: #2699fb;
+      border-color: #2699fb;
+    }
+    
+    .btn-primary:hover {
+      background-color: #1a7cd3;
+      border-color: #1a7cd3;
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidebar de navegación -->
+  <aside class="sidebar">
+    <h1>PERFIL DE USUARIO</h1>
+    <button class="btn" id="btnCambiarClave" data-bs-toggle="modal" data-bs-target="#modalCambioClave">Cambiar Contraseña</button>
+    <button class="btn" id="btnVolver">Volver</button>
+  </aside>
+
+  <!-- Contenido principal -->
+  <main class="content">
+    <div id="mensajePerfil" class="mb-3"></div>
+
+    <!-- Información del usuario -->
+    <div class="profile-card">
+      <div class="profile-header">
+        <div class="profile-avatar">JS</div>
+        <div class="profile-info">
+          <h2>Juan Sánchez</h2>
+          <p>Administrador</p>
+        </div>
+      </div>
+      
+      <div class="row">
+        <div class="col-md-6">
+          <div class="mb-3">
+            <label class="form-label">Nombre de usuario</label>
+            <p class="form-control-plaintext">jsanchez</p>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Correo electrónico</label>
+            <p class="form-control-plaintext">jsanchez@empresa.com</p>
+          </div>
+        </div>
+        <div class="col-md-6">          
+          <div class="mb-3">
+            <label class="form-label">Fecha de registro</label>
+            <p class="form-control-plaintext">15/03/2023</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal para cambiar contraseña -->
+  <div class="modal fade" id="modalCambioClave" tabindex="-1" aria-labelledby="modalCambioClaveLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content shadow">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title" id="modalCambioClaveLabel">Cambiar Contraseña</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <form id="formCambioClave">
+            <div class="form-group mb-3">
+              <label for="clave_actual">Contraseña Actual</label>
+              <input type="password" id="clave_actual" name="clave_actual" required class="form-control" />
+            </div>
+            <div class="form-group mb-3">
+              <label for="clave_nueva">Nueva Contraseña</label>
+              <input type="password" id="clave_nueva" name="clave_nueva" required class="form-control" />
+            </div>
+            <div class="form-group mb-3">
+              <label for="confirmar_clave">Confirmar Nueva Contraseña</label>
+              <input type="password" id="confirmar_clave" name="confirmar_clave" required class="form-control" />
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Cambiar Contraseña</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contenedor del teclado -->
+  <div id="tecladoContainer" style="display: none; position: fixed; bottom: 0; width: 100%; z-index: 9999; background: #fff; box-shadow: 0 -2px 10px rgba(0,0,0,0.3);">
+    <div class="simple-keyboard"></div>
+  </div>  
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Scripts para teclado -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/simple-keyboard/3.8.67/index.min.js"></script>
+  <script src="/js/teclado.js"></script>
+  <script>
+    tecladoVirtual.init();
+
+    // Activar el teclado en cualquier input con clase 'usar-teclado'
+    document.querySelectorAll('.usar-teclado').forEach(input => {
+      input.addEventListener('focus', () => {
+        tecladoVirtual.show(input);
+      });
+    });
+    
+    // Validación del formulario de cambio de contraseña
+    document.getElementById('formCambioClave').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const nuevaClave = document.getElementById('clave_nueva').value;
+      const confirmarClave = document.getElementById('confirmar_clave').value;
+      
+      if (nuevaClave !== confirmarClave) {
+        alert('Las contraseñas nuevas no coinciden');
+        return;
+      }
+      
+      if (nuevaClave.length < 6) {
+        alert('La nueva contraseña debe tener al menos 6 caracteres');
+        return;
+      }
+      
+      // Aquí iría la lógica para enviar los datos al servidor
+      alert('Contraseña cambiada exitosamente');
+      document.getElementById('modalCambioClave').querySelector('.btn-close').click();
+    });
+
+    $('#btnVolver').on('click', () => {
+        window.location.href = '/home.html';
+    });
+  </script>
+</body>
+</html>

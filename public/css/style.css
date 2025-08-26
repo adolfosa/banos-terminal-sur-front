@@ -170,6 +170,29 @@ h3 {
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
+.user-button {
+  display: inline-block; /* Para que respete dimensiones de la imagen */
+  border: none;          /* Elimina bordes por defecto */
+  background: none;      /* Fondo transparente */
+  padding: 0;            /* Elimina relleno */
+  cursor: pointer;       /* Cambia el cursor al pasar */
+}
+
+.user-image {
+  width: 50px;          /* Ajusta al tamaño deseado */
+  height: auto;         /* Mantiene proporción */
+  transition: 0.2s;     /* Para efectos suaves */
+}
+
+.user-button:hover .caja-image {
+  opacity: 0.8;
+  transform: scale(1.05);
+}
+
+.user-button:active {
+  transform: scale(0.96);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
 
 .logout-button {
   display: inline-block; /* Para que respete dimensiones de la imagen */
