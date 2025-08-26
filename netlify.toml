@@ -7,9 +7,4 @@
   from = "/"
   to = "/login.html"
   status = 200
-
-# Opcional: Si tienes un SPA (Single Page Application)
-[[redirects]]
-  from = "/*"
-  to = "/login.html"
-  status = 200
+  force = true
