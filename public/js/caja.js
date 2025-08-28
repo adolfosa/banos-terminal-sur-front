@@ -120,58 +120,125 @@ $(document).ready(function () {
     const usuarioJSON = sessionStorage.getItem('usuario');
 
     if (!token || !usuarioJSON) {
-      alert('Sesión no válida. Vuelve a iniciar sesión.');
-      sessionStorage.clear();
-      window.location.href = '/login.html';
-      return;
+        alert('Sesión no válida. Vuelve a iniciar sesión.');
+        sessionStorage.clear();
+        window.location.href = '/login.html';
+        return;
     }
 
     function parseJwt(token) {
-      try {
-        const payload = token.split('.')[1];
-        return JSON.parse(atob(payload));
-      } catch (err) {
-        return null;
-      }
+        try {
+            const payload = token.split('.')[1];
+            return JSON.parse(atob(payload));
+        } catch (err) {
+            return null;
+        }
     }
 
     const payload = parseJwt(token);
     if (!payload || !payload.id) {
-      alert('Token inválido. Vuelve a iniciar sesión.');
-      sessionStorage.clear();
-      window.location.href = '/login.html';
-      return;
+        alert('Token inválido. Vuelve a iniciar sesión.');
+        sessionStorage.clear();
+        window.location.href = '/login.html';
+        return;
     }
 
     const id_usuario_apertura = payload.id;
 
     if (!monto || isNaN(monto) || parseFloat(monto) <= 0) {
-      alert('El monto inicial debe ser un número mayor a 0.');
-      return;
+        alert('El monto inicial debe ser un número mayor a 0.');
+        return;
     }
 
-    $.post('http://localhost:3000/api/caja/abrir', {
-      monto_inicial: monto,
-      observaciones: observaciones,
-      id_usuario_apertura: id_usuario_apertura
-      }, function (res) {
-      if (res.success) {
-          localStorage.setItem('id_aperturas_cierres', res.id);
-          localStorage.setItem('estado_caja', 'abierta');
-          localStorage.setItem('numero_caja', res.numero_caja); 
-          $('#modalInicio').modal('hide');
-          alert('Caja abierta correctamente');
-          $('#btnAbrirCaja').prop('disabled', true);
-          cargarCaja(); 
-      } else {
-          if (res.error === 'Ya existe una caja abierta para este número.') {
-              alert('La caja ya está abierta');
-          } else {
-              alert(res.error);
-          }
-      }
-  });
-  });
+    // Función para obtener el número de caja desde el backend local
+    function obtenerNumeroCaja() {
+        return new Promise((resolve, reject) => {
+            $.ajax({
+                url: 'http://localhost:3000/api/numero-caja',
+                type: 'GET',
+                success: function(data) {
+                    if (data && data.numero_caja !== undefined) {
+                        resolve(data.numero_caja);
+                    } else {
+                        reject('Número de caja no disponible');
+                    }
+                },
+                error: function(error) {
+                    reject('Error al obtener número de caja: ' + error.statusText);
+                }
+            });
+        });
+    }
+
+    // Función principal para abrir la caja
+    async function abrirCaja() {
+        try {
+            // Obtener número de caja
+            const numero_caja = await obtenerNumeroCaja();
+            
+            // Obtener fecha y hora actual
+            const now = new Date();
+            const fecha_apertura = now.toISOString().split('T')[0];
+            const hora_apertura = now.toTimeString().split(' ')[0];
+
+            // Hacer la petición para abrir la caja
+            $.ajax({
+                url: 'http://localhost:3000/api/caja/abrir',
+                type: 'POST',
+                data: {
+                    numero_caja: numero_caja,
+                    id_usuario_apertura: id_usuario_apertura,
+                    fecha_apertura: fecha_apertura,
+                    hora_apertura: hora_apertura,
+                    monto_inicial: monto,
+                    observaciones: observaciones,
+                    estado: 'abierta'
+                },
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                },
+                success: function(res) {
+                    if (res.success) {
+                        localStorage.setItem('id_aperturas_cierres', res.id);
+                        localStorage.setItem('estado_caja', 'abierta');
+                        localStorage.setItem('numero_caja', res.numero_caja); 
+                        $('#modalInicio').modal('hide');
+                        alert('Caja abierta correctamente');
+                        $('#btnAbrirCaja').prop('disabled', true);
+                        cargarCaja(); 
+                    } else {
+                        if (res.error === 'Ya existe una caja abierta para este número.') {
+                            alert('La caja ya está abierta');
+                        } else {
+                            alert(res.error);
+                        }
+                    }
+                },
+                error: function(error) {
+                    console.error('Error en la petición:', error);
+                    if (error.status === 400) {
+                        alert('Datos incompletos: ' + error.responseJSON.error);
+                    } else if (error.status === 401) {
+                        alert('Sesión expirada. Por favor, inicie sesión nuevamente.');
+                        sessionStorage.clear();
+                        window.location.href = '/login.html';
+                    } else if (error.status === 500) {
+                        alert('Error del servidor: ' + error.responseJSON.error);
+                    } else {
+                        alert('Error al conectar con el servidor');
+                    }
+                }
+            });
+
+        } catch (error) {
+            console.error('Error:', error);
+            alert(error);
+        }
+    }
+
+    // Ejecutar la función principal
+    abrirCaja();
+});
 
   $('#btnCerrarCaja').on('click', function () {
       const estadoCaja = localStorage.getItem('estado_caja');
