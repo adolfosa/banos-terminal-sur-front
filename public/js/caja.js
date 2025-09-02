@@ -458,8 +458,8 @@ $('#formAuthAdmin').on('submit', function(e) {
     .then(esAdmin => {
       if (esAdmin) {
         $('#modalAuthAdmin').modal('hide');
-        const balanceActual = parseFloat($('#balanceActual').text().replace('$', '').replace(/,/g, ''));
-        $('#balanceDisponible').text('$' + balanceActual.toLocaleString());
+        const balanceActual = parseFloat($('#balanceActual').text().replace('$', '').replace(/\./g, '').replace(',', '.'));
+        $('#balanceDisponible').text('$' + balanceActual.toLocaleString('es-CL'));
         $('#modalRetiro').modal('show');
         
         // Limpiar formulario
