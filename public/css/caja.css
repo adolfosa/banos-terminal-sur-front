@@ -114,3 +114,132 @@ body {
 #mensajeCaja {
   margin-top: 1rem;
 }
+
+/* Nuevos estilos para los totales */
+.resumen-totales {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.total-card {
+  background: white;
+  border-radius: 10px;
+  padding: 1.2rem;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  flex: 1;
+  min-width: 200px;
+  border-top: 4px solid;
+}
+
+.total-card.efectivo {
+  border-color: #28a745;
+}
+
+.total-card.tarjeta {
+  border-color: #17a2b8;
+}
+
+.total-card.general {
+  border-color: #ff5600;
+}
+
+.total-titulo {
+  font-size: 0.9rem;
+  color: #6c757d;
+  margin-bottom: 0.5rem;
+}
+
+.total-valor {
+  font-size: 1.8rem;
+  font-weight: bold;
+}
+
+.total-card.efectivo .total-valor {
+  color: #28a745;
+}
+
+.total-card.tarjeta .total-valor {
+  color: #17a2b8;
+}
+
+.total-card.general .total-valor {
+  color: #ff5600;
+}
+
+/* Mejoras a la tabla */
+.table th {
+  background-color: #f8f9fa;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.table-hover tbody tr:hover {
+  background-color: rgba(38, 153, 251, 0.1);
+}
+
+.monto {
+  font-weight: 600;
+  text-align: right;
+}
+
+.monto.efectivo {
+  color: #28a745;
+}
+
+.monto.tarjeta {
+  color: #17a2b8;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .resumen-totales {
+    flex-direction: column;
+  }
+  
+  .total-card {
+    min-width: 100%;
+  }
+  
+  body {
+    flex-direction: column;
+  }
+  
+  .sidebar {
+    width: 100%;
+    padding: 1rem;
+  }
+}
+
+/* Estilos para la tarjeta de fondo inicial */
+.total-card.fondo-inicial {
+  border-color: #6f42c1;
+}
+
+.total-card.fondo-inicial .total-valor {
+  color: #6f42c1;
+}
+
+/* Estilos para la tarjeta de balance */
+.total-card.balance {
+  border-color: #fd7e14;
+}
+
+.total-card.balance .total-valor {
+  color: #fd7e14;
+}
+
+/* Ajustar responsive para más tarjetas */
+@media (max-width: 1200px) {
+  .resumen-totales {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .resumen-totales {
+    grid-template-columns: 1fr;
+  }
+}

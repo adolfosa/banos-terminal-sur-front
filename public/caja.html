@@ -76,6 +76,84 @@
       max-height: 500px;
       overflow-y: auto;
     }
+
+    /* Nuevos estilos para los totales */
+    .resumen-totales {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .total-card {
+      background: white;
+      border-radius: 10px;
+      padding: 1.2rem;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      flex: 1;
+      min-width: 200px;
+      border-top: 4px solid;
+    }
+
+    .total-card.efectivo {
+      border-color: #28a745;
+    }
+
+    .total-card.tarjeta {
+      border-color: #17a2b8;
+    }
+
+    .total-card.general {
+      border-color: #ff5600;
+    }
+
+    .total-titulo {
+      font-size: 0.9rem;
+      color: #6c757d;
+      margin-bottom: 0.5rem;
+    }
+
+    .total-valor {
+      font-size: 1.8rem;
+      font-weight: bold;
+    }
+
+    .total-card.efectivo .total-valor {
+      color: #28a745;
+    }
+
+    .total-card.tarjeta .total-valor {
+      color: #17a2b8;
+    }
+
+    .total-card.general .total-valor {
+      color: #ff5600;
+    }
+
+    /* Mejoras a la tabla */
+    .table th {
+      background-color: #f8f9fa;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .table-hover tbody tr:hover {
+      background-color: rgba(38, 153, 251, 0.1);
+    }
+
+    .monto {
+      font-weight: 600;
+      text-align: right;
+    }
+
+    .monto.efectivo {
+      color: #28a745;
+    }
+
+    .monto.tarjeta {
+      color: #17a2b8;
+    }
   </style>
 </head>
 <body>
@@ -93,6 +171,26 @@
     <div id="mensajeCaja" class="mb-3"></div>
 
     <div id="infoCajaUser" class="mb-4"></div>
+
+    <!-- Resumen de totales -->
+    <div class="resumen-totales" id="resumenTotales">
+      <div class="total-card fondo-inicial">
+        <div class="total-titulo">FONDO INICIAL</div>
+        <div class="total-valor" id="fondoInicial">$0</div>
+      </div>
+      <div class="total-card efectivo">
+        <div class="total-titulo">TOTAL EFECTIVO</div>
+        <div class="total-valor" id="totalEfectivo">$0</div>
+      </div>
+      <div class="total-card tarjeta">
+        <div class="total-titulo">TOTAL TARJETA</div>
+        <div class="total-valor" id="totalTarjeta">$0</div>
+      </div>
+      <div class="total-card balance">
+        <div class="total-titulo">BALANCE ACTUAL EFECTIVO</div>
+        <div class="total-valor" id="balanceActual">$0</div>
+      </div>
+    </div>
 
     <!-- Tabla -->
     <div class="table-card mb-4">

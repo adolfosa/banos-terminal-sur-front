@@ -4,90 +4,35 @@ $(document).ready(function () {
 
   console.log("Usuario:", usuario);
   
-  // Función para cargar y mostrar todas las cajas
-  function cargarCaja() {
-    const usuarioJSON = sessionStorage.getItem('usuario');
-    const token = sessionStorage.getItem('authToken');
-
-    if (!usuarioJSON || !token) {
-      $('#infoCajaUser').html('');
-      $('#tablaCaja tbody').html('<tr><td colspan="9" class="text-center text-danger">No hay sesión activa.</td></tr>');
-      return;
-    }
-
-    const payload = parseJwt(token);
-    if (!payload || !payload.id) {
-      $('#infoCajaUser').html('');
-      $('#tablaCaja tbody').html('<tr><td colspan="9" class="text-center text-danger">Token inválido.</td></tr>');
-      return;
-    }
-
-    const id_usuario = payload.id;
-
-    // ✅ 1. Mostrar caja abierta del sistema
-    const numeroCaja = localStorage.getItem('numero_caja');
-    if (!numeroCaja) return;
-
-    $.get(`http://localhost:3000/api/caja/abierta?numero_caja=${numeroCaja}`, function (res) {
-
-      if (!res.success) {
-        $('#infoCajaUser').html('');
-        return;
+  // Función para calcular y mostrar totales
+  function calcularTotales(movimientos, montoInicial = 0) {
+    let totalEfectivo = 0;
+    let totalTarjeta = 0;
+    
+    movimientos.forEach(movimiento => {
+      const monto = parseFloat(movimiento.monto) || 0;
+      
+      if (movimiento.medio_pago && movimiento.medio_pago.toLowerCase().includes('efectivo')) {
+        totalEfectivo += monto;
+      } else if (movimiento.medio_pago && (
+        movimiento.medio_pago.toLowerCase().includes('tarjeta') || 
+        movimiento.medio_pago.toLowerCase().includes('débito') ||
+        movimiento.medio_pago.toLowerCase().includes('crédito')
+      )) {
+        totalTarjeta += monto;
       }
-
-      const c = res.caja;
-      const fecha = new Date(c.fecha_apertura);
-      const dia = String(fecha.getDate()).padStart(2, '0');
-      const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-      const anio = fecha.getFullYear();
-      const fechaFormateada = `${dia}-${mes}-${anio}`;
-
-      const card = `
-        <div class="card shadow-sm border-primary">
-          <div class="card-body">
-            <h5 class="card-title mb-2">Caja Abierta por: ${c.nombre_usuario}</h5>
-            <p class="mb-1"><strong>N° Caja:</strong> ${c.numero_caja}</p>
-            <p class="mb-1"><strong>Fecha:</strong> ${fechaFormateada} &nbsp; <strong>Hora:</strong> ${c.hora_apertura}</p>
-          </div>
-        </div>
-      `;
-      $('#infoCajaUser').html(card);
-    }).fail(function () {
-      $('#infoCajaUser').html('');
     });
-
-    // ✅ 2. Mostrar movimientos por caja     
-    $.get(`http://localhost:3000/api/caja/movimientos/por-caja?numero_caja=${numeroCaja}`, function (res) {
-
-      if (!res.success || !res.movimientos.length) {
-        $('#tablaCaja tbody').html('<tr><td colspan="9" class="text-center text-muted">No hay movimientos registrados.</td></tr>');
-        return;
-      }
-
-      const filas = res.movimientos.map(m => {
-        const fecha = new Date(m.fecha);
-        const dia = String(fecha.getDate()).padStart(2, '0');
-        const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-        const anio = fecha.getFullYear();
-        const fechaFormateada = `${dia}-${mes}-${anio}`;
-
-        return `
-          <tr>
-            <td>${m.id}</td>
-            <td>${fechaFormateada}</td>
-            <td>${m.hora}</td>
-            <td>${m.nombre_servicio}</td>
-            <td>${m.medio_pago}</td>
-            <td>$${parseFloat(m.monto).toLocaleString()}</td>
-            <td>${m.nombre_usuario}</td>            
-          </tr>
-        `;
-      }).join('');
-
-      $('#tablaCaja tbody').html(filas);
-    }).fail(function () {
-      $('#tablaCaja tbody').html('<tr><td colspan="9" class="text-center text-danger">Error al cargar movimientos.</td></tr>');
-    });
+    
+    const totalGeneral = totalEfectivo + totalTarjeta;
+    const balanceActual = parseFloat(montoInicial) + totalEfectivo;
+    
+    // Actualizar la UI con los totales - asegurar que montoInicial sea un número
+    const montoInicialNum = parseFloat(montoInicial) || 0;
+    $('#fondoInicial').text('$' + montoInicialNum.toLocaleString());
+    $('#totalEfectivo').text('$' + totalEfectivo.toLocaleString());
+    $('#totalTarjeta').text('$' + totalTarjeta.toLocaleString());
+    $('#totalGeneral').text('$' + totalGeneral.toLocaleString());
+    $('#balanceActual').text('$' + balanceActual.toLocaleString());
   }
 
   // Helper para decodificar JWT
@@ -98,6 +43,166 @@ $(document).ready(function () {
     } catch (e) {
       return null;
     }
+  }
+
+  // Función para cargar y mostrar todas las cajas
+  function cargarCaja() {
+    const usuarioJSON = sessionStorage.getItem('usuario');
+    const token = sessionStorage.getItem('authToken');
+
+    if (!usuarioJSON || !token) {
+      $('#infoCajaUser').html('');
+      $('#tablaCaja tbody').html('<tr><td colspan="9" class="text-center text-danger">No hay sesión activa.</td></tr>');
+      
+      // Limpiar totales
+      $('#fondoInicial').text('$0');
+      $('#totalEfectivo').text('$0');
+      $('#totalTarjeta').text('$0');
+      $('#totalGeneral').text('$0');
+      $('#balanceActual').text('$0');
+      return;
+    }
+
+    const payload = parseJwt(token);
+    if (!payload || !payload.id) {
+      $('#infoCajaUser').html('');
+      $('#tablaCaja tbody').html('<tr><td colspan="9" class="text-center text-danger">Token inválido.</td></tr>');
+      
+      // Limpiar totales
+      $('#fondoInicial').text('$0');
+      $('#totalEfectivo').text('$0');
+      $('#totalTarjeta').text('$0');
+      $('#totalGeneral').text('$0');
+      $('#balanceActual').text('$0');
+      return;
+    }
+
+    // ✅ 1. Obtener ID de apertura_cierre desde localStorage
+    const idAperturaCierre = localStorage.getItem('id_aperturas_cierres');
+    const numeroCaja = localStorage.getItem('numero_caja');
+    
+    if (!idAperturaCierre || !numeroCaja) {
+      // Si no hay caja abierta, limpiar totales
+      $('#fondoInicial').text('$0');
+      $('#totalEfectivo').text('$0');
+      $('#totalTarjeta').text('$0');
+      $('#totalGeneral').text('$0');
+      $('#balanceActual').text('$0');
+      return;
+    }
+
+    // ✅ 2. Obtener detalles de la caja desde la API correcta CON TOKEN
+    $.ajax({
+      url: `https://backend-banios.dev-wit.com/api/aperturas-cierres/${idAperturaCierre}`,
+      type: 'GET',
+      headers: {
+        'Authorization': 'Bearer ' + token
+      },
+      success: function(resCaja) {
+        if (!resCaja || !resCaja.monto_inicial) {
+          $('#infoCajaUser').html('');
+          $('#fondoInicial').text('$0');
+          return;
+        }
+
+        const c = resCaja;
+        const fecha = new Date(c.fecha_apertura);
+        const dia = String(fecha.getDate()).padStart(2, '0');
+        const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+        const anio = fecha.getFullYear();
+        const fechaFormateada = `${dia}-${mes}-${anio}`;
+
+        // Asegurar que el monto inicial es un número válido
+        const montoInicial = parseFloat(c.monto_inicial) || 0;
+
+        // Obtener el usuario desde sessionStorage
+        const usuario = JSON.parse(sessionStorage.getItem('usuario') || '{}');
+        const nombreUsuario = usuario.username || 'Usuario';
+
+        const card = `
+          <div class="card shadow-sm border-primary">
+            <div class="card-body">
+              <h5 class="card-title mb-2">Caja Abierta por: ${nombreUsuario}</h5>
+              <p class="mb-1"><strong>N° Caja:</strong> ${numeroCaja}</p>
+              <p class="mb-1"><strong>Fecha:</strong> ${fechaFormateada} &nbsp; <strong>Hora:</strong> ${c.hora_apertura}</p>
+              <p class="mb-0"><strong>Monto Inicial:</strong> $${montoInicial.toLocaleString()}</p>
+            </div>
+          </div>
+        `;
+        $('#infoCajaUser').html(card);
+
+        // ✅ 3. Mostrar movimientos por caja     
+        $.ajax({
+          url: `http://localhost:3000/api/caja/movimientos/por-caja?numero_caja=${numeroCaja}`,
+          type: 'GET',
+          headers: {
+            'Authorization': 'Bearer ' + token
+          },
+          success: function(resMovimientos) {
+            if (!resMovimientos.success) {
+              $('#tablaCaja tbody').html('<tr><td colspan="9" class="text-center text-danger">Error al cargar movimientos.</td></tr>');
+              calcularTotales([], montoInicial);
+              return;
+            }
+
+            if (!resMovimientos.movimientos || !resMovimientos.movimientos.length) {
+              $('#tablaCaja tbody').html('<tr><td colspan="9" class="text-center text-muted">No hay movimientos registrados.</td></tr>');
+              calcularTotales([], montoInicial);
+              return;
+            }
+
+            const filas = resMovimientos.movimientos.map(m => {
+              const fecha = new Date(m.fecha);
+              const dia = String(fecha.getDate()).padStart(2, '0');
+              const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+              const anio = fecha.getFullYear();
+              const fechaFormateada = `${dia}-${mes}-${anio}`;
+              
+              // Determinar clase CSS según el medio de pago
+              let claseMonto = 'monto';
+              if (m.medio_pago && m.medio_pago.toLowerCase().includes('efectivo')) {
+                claseMonto += ' efectivo';
+              } else if (m.medio_pago && (
+                m.medio_pago.toLowerCase().includes('tarjeta') || 
+                m.medio_pago.toLowerCase().includes('débito') ||
+                m.medio_pago.toLowerCase().includes('crédito')
+              )) {
+                claseMonto += ' tarjeta';
+              }
+
+              return `
+                <tr>
+                  <td>${m.id}</td>
+                  <td>${fechaFormateada}</td>
+                  <td>${m.hora}</td>
+                  <td>${m.nombre_servicio}</td>
+                  <td>${m.medio_pago}</td>
+                  <td class="${claseMonto}">$${parseFloat(m.monto || 0).toLocaleString()}</td>
+                  <td>${m.nombre_usuario}</td>            
+                </tr>
+              `;
+            }).join('');
+
+            $('#tablaCaja tbody').html(filas);
+            
+            // Calcular y mostrar totales
+            calcularTotales(resMovimientos.movimientos, montoInicial);
+          },
+          error: function() {
+            $('#tablaCaja tbody').html('<tr><td colspan="9" class="text-center text-danger">Error al cargar movimientos.</td></tr>');
+            calcularTotales([], montoInicial);
+          }
+        });
+      },
+      error: function() {
+        $('#infoCajaUser').html('');
+        $('#fondoInicial').text('$0');
+        $('#totalEfectivo').text('$0');
+        $('#totalTarjeta').text('$0');
+        $('#totalGeneral').text('$0');
+        $('#balanceActual').text('$0');
+      }
+    });
   }
 
   // Cargar cajas al iniciar
@@ -274,26 +379,33 @@ $(document).ready(function () {
               observaciones: 'Cierre manual desde interfaz'
           }),
           success: function (data) {
-              if (data.success) {
-                  // 🔹 Limpiar estado de la caja
-                  localStorage.removeItem('id_aperturas_cierres');
-                  localStorage.removeItem('estado_caja');
-                  localStorage.removeItem('numero_caja');
+            if (data.success) {
+              // 🔹 Limpiar estado de la caja
+              localStorage.removeItem('id_aperturas_cierres');
+              localStorage.removeItem('estado_caja');
+              localStorage.removeItem('numero_caja');
 
-                  // 🔹 Limpiar datos de la interfaz
-                  $('#infoCajaUser').html('');
-                  $('#tablaCaja tbody').html('<tr><td colspan="9" class="text-center text-muted">Caja cerrada. No hay movimientos.</td></tr>');
+              // 🔹 Limpiar datos de la interfaz
+              $('#infoCajaUser').html('');
+              $('#tablaCaja tbody').html('<tr><td colspan="9" class="text-center text-muted">Caja cerrada. No hay movimientos.</td></tr>');
+              
+              // 🔹 Limpiar totales (NUEVO CÓDIGO)
+              $('#fondoInicial').text('$0');
+              $('#totalEfectivo').text('$0');
+              $('#totalTarjeta').text('$0');
+              $('#totalGeneral').text('$0');
+              $('#balanceActual').text('$0');
 
-                  // 🔹 Desactivar botón de cerrar caja
-                  $('#btnCerrarCaja').prop('disabled', true);
+              // 🔹 Desactivar botón de cerrar caja
+              $('#btnCerrarCaja').prop('disabled', true);
 
-                  // 🔹 Habilitar abrir caja
-                  $('#btnAbrirCaja').prop('disabled', false);
+              // 🔹 Habilitar abrir caja
+              $('#btnAbrirCaja').prop('disabled', false);
 
-                  alert('Caja cerrada correctamente.');
-              } else {
-                  alert(data.error || 'Error desconocido.');
-              }
+              alert('Caja cerrada correctamente.');
+            } else {
+              alert(data.error || 'Error desconocido.');
+            }
           },
           error: function (xhr, status, error) {
               alert('Error en el servidor: ' + error);
