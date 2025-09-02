@@ -302,9 +302,14 @@ $(document).ready(function () {
   });
   
     // Deshabilitar botón si la caja ya está abierta
+    // Validar botones según estado de la caja al iniciar
     const estadoCaja = localStorage.getItem('estado_caja');
     if (estadoCaja === 'abierta') {
-      $('#btnAbrirCaja').prop('disabled', true);
+        $('#btnAbrirCaja').prop('disabled', true);
+        $('#btnCerrarCaja').prop('disabled', false);
+    } else {
+        $('#btnAbrirCaja').prop('disabled', false);
+        $('#btnCerrarCaja').prop('disabled', true);
     }
   
   document.getElementById('btnVolver').addEventListener('click', () => {
