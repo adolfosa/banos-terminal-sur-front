@@ -3,10 +3,6 @@ $(document).ready(function () {
   const usuario = usuarioRaw ? JSON.parse(usuarioRaw) : null;
 
   console.log("Usuario:", usuario);
-
-  if (usuario?.role === 'admin') {
-    $('#btnAdmin').show(); // Solo mostrar si es admin
-  }
   
   // Función para cargar y mostrar todas las cajas
   function cargarCaja() {
@@ -313,15 +309,10 @@ $(document).ready(function () {
       });
   });
   
-//  $('#btnAdmin').on('click', function () {
-//     window.location.href = 'admin-cajas.html';
-//   });
-  
     // Deshabilitar botón si la caja ya está abierta
     const estadoCaja = localStorage.getItem('estado_caja');
     if (estadoCaja === 'abierta') {
-        $('#btnAbrirCaja').prop('disabled', true);
-        alert('La caja ya está abierta.');
+      $('#btnAbrirCaja').prop('disabled', true);
     }
   
   document.getElementById('btnVolver').addEventListener('click', () => {
