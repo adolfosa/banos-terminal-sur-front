@@ -243,3 +243,44 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* Estilos para el historial de retiros */
+.retiro-item {
+  border-left: 4px solid #dc3545;
+  padding-left: 1rem;
+  margin-bottom: 1rem;
+}
+
+.retiro-fecha {
+  font-size: 0.85rem;
+  color: #6c757d;
+}
+
+.retiro-monto {
+  font-weight: bold;
+  color: #dc3545;
+}
+
+.retiro-motivo {
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
+}
+
+/* Tarjeta de total retirado */
+.total-card.retirado {
+  border-color: #dc3545;
+}
+
+.total-card.retirado .total-valor {
+  color: #dc3545;
+}
+
+/* Mejoras para modales */
+.modal-header {
+  border-bottom: 2px solid rgba(0,0,0,0.1);
+}
+
+.modal-content {
+  border-radius: 12px;
+  border: none;
+}

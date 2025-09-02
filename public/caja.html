@@ -163,6 +163,7 @@
     <button class="btn" id="btnAbrirCaja" data-bs-toggle="modal" data-bs-target="#modalInicio">Abrir Caja</button>
     <button class="btn" id="btnCerrarCaja">Cerrar Caja</button>    
     <button class="btn" id="btnActualizar">Actualizar Movimientos</button>
+    <button class="btn" id="btnRetiroEfectivo">Retiro de Efectivo</button>
     <button class="btn" id="btnVolver">Volver</button>
   </aside>
 
@@ -235,6 +236,63 @@
               <textarea id="observaciones_modal" name="observaciones" rows="3" class="form-control usar-teclado"></textarea>
             </div>
             <button type="submit" class="btn w-100">Abrir Caja</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Autenticación -->
+  <div class="modal fade" id="modalAuthAdmin" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content shadow">
+        <div class="modal-header bg-warning text-dark">
+          <h5 class="modal-title">Autenticación Requerida</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <form id="formAuthAdmin">
+            <div class="form-group mb-3">
+              <label for="adminUsername">Usuario Administrador</label>
+              <input type="text" id="adminUsername" class="form-control" required>
+            </div>
+            <div class="form-group mb-3">
+              <label for="adminPassword">Contraseña</label>
+              <input type="password" id="adminPassword" class="form-control" required>
+            </div>
+            <button type="submit" class="btn w-100">Verificar</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Retiro -->
+  <div class="modal fade" id="modalRetiro" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content shadow">
+        <div class="modal-header bg-info text-white">
+          <h5 class="modal-title">Retiro de Efectivo</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-info">
+            Balance disponible en efectivo: <strong id="balanceDisponible">$0</strong>
+          </div>
+          <form id="formRetiroEfectivo">
+            <div class="form-group mb-3">
+              <label for="montoRetiro">Monto a Retirar</label>
+              <input type="text" id="montoRetiro" class="form-control usar-teclado" inputmode="numeric" required>
+            </div>
+            <div class="form-group mb-3">
+              <label for="motivoRetiro">Motivo del Retiro</label>
+              <textarea id="motivoRetiro" class="form-control" rows="2" required></textarea>
+            </div>
+            <div class="form-group mb-3">
+              <label for="comprobanteRetiro">N° de Comprobante (opcional)</label>
+              <input type="text" id="comprobanteRetiro" class="form-control">
+            </div>
+            <button type="submit" class="btn w-100">Realizar Retiro</button>
           </form>
         </div>
       </div>

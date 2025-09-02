@@ -8,11 +8,14 @@ $(document).ready(function () {
   function calcularTotales(movimientos, montoInicial = 0) {
     let totalEfectivo = 0;
     let totalTarjeta = 0;
+    let totalRetiros = 0;
     
     movimientos.forEach(movimiento => {
       const monto = parseFloat(movimiento.monto) || 0;
       
-      if (movimiento.medio_pago && movimiento.medio_pago.toLowerCase().includes('efectivo')) {
+      if (movimiento.tipo === 'retiro') {
+        totalRetiros += monto;
+      } else if (movimiento.medio_pago && movimiento.medio_pago.toLowerCase().includes('efectivo')) {
         totalEfectivo += monto;
       } else if (movimiento.medio_pago && (
         movimiento.medio_pago.toLowerCase().includes('tarjeta') || 
@@ -24,15 +27,29 @@ $(document).ready(function () {
     });
     
     const totalGeneral = totalEfectivo + totalTarjeta;
-    const balanceActual = parseFloat(montoInicial) + totalEfectivo;
+    const balanceActual = parseFloat(montoInicial) + totalEfectivo - totalRetiros;
     
-    // Actualizar la UI con los totales - asegurar que montoInicial sea un número
+    // Actualizar la UI con los totales
     const montoInicialNum = parseFloat(montoInicial) || 0;
     $('#fondoInicial').text('$' + montoInicialNum.toLocaleString());
     $('#totalEfectivo').text('$' + totalEfectivo.toLocaleString());
     $('#totalTarjeta').text('$' + totalTarjeta.toLocaleString());
     $('#totalGeneral').text('$' + totalGeneral.toLocaleString());
     $('#balanceActual').text('$' + balanceActual.toLocaleString());
+    
+    // Agregar tarjeta de total retirado si hay retiros
+    if (totalRetiros > 0) {
+      if ($('#totalRetirado').length === 0) {
+        $('#resumenTotales').append(`
+          <div class="total-card retirado">
+            <div class="total-titulo">TOTAL RETIRADO</div>
+            <div class="total-valor" id="totalRetirado">$${totalRetiros.toLocaleString()}</div>
+          </div>
+        `);
+      } else {
+        $('#totalRetirado').text('$' + totalRetiros.toLocaleString());
+      }
+    }
   }
 
   // Helper para decodificar JWT
@@ -412,6 +429,179 @@ $(document).ready(function () {
           }
       });
   });
+
+  $('#btnRetiroEfectivo').on('click', function() {
+  // Verificar que hay una caja abierta
+  const estadoCaja = localStorage.getItem('estado_caja');
+  if (estadoCaja !== 'abierta') {
+    alert('Debe tener una caja abierta para realizar retiros.');
+    return;
+  }
+  
+  // Mostrar modal de autenticación primero
+  $('#modalAuthAdmin').modal('show');
+});
+
+// Autenticación de administrador
+$('#formAuthAdmin').on('submit', function(e) {
+  e.preventDefault();
+  
+  const username = $('#adminUsername').val();
+  const password = $('#adminPassword').val();
+  
+  // Mostrar indicador de carga
+  const submitBtn = $(this).find('button[type="submit"]');
+  const originalText = submitBtn.text();
+  submitBtn.prop('disabled', true).text('Verificando...');
+  
+  verificarAdmin(username, password)
+    .then(esAdmin => {
+      if (esAdmin) {
+        $('#modalAuthAdmin').modal('hide');
+        const balanceActual = parseFloat($('#balanceActual').text().replace('$', '').replace(/,/g, ''));
+        $('#balanceDisponible').text('$' + balanceActual.toLocaleString());
+        $('#modalRetiro').modal('show');
+        
+        // Limpiar formulario
+        $('#adminUsername').val('');
+        $('#adminPassword').val('');
+      } else {
+        alert('Credenciales incorrectas o usuario no tiene permisos de administrador.');
+      }
+    })
+    .catch(error => {
+      console.error('Error en autenticación:', error);
+      alert('Error al verificar credenciales: ' + error.message);
+    })
+    .finally(() => {
+      // Restaurar botón
+      submitBtn.prop('disabled', false).text(originalText);
+    });
+});
+
+  // Procesar retiro de efectivo
+  $('#formRetiroEfectivo').on('submit', function(e) {
+    e.preventDefault();
+    
+    const monto = parseFloat($('#montoRetiro').val().replace(/,/g, ''));
+    const motivo = $('#motivoRetiro').val();
+    const comprobante = $('#comprobanteRetiro').val();
+    const balanceActual = parseFloat($('#balanceActual').text().replace('$', '').replace(/,/g, ''));
+    
+    // Validaciones
+    if (isNaN(monto) || monto <= 0) {
+      alert('Ingrese un monto válido mayor a cero.');
+      return;
+    }
+    
+    if (monto > balanceActual) {
+      alert('No puede retirar más del efectivo disponible.');
+      return;
+    }
+    
+    if (!motivo.trim()) {
+      alert('Debe especificar un motivo para el retiro.');
+      return;
+    }
+    
+    // Confirmación final
+    if (!confirm(`¿Está seguro de retirar $${monto.toLocaleString()}?`)) {
+      return;
+    }
+    
+    // Realizar el retiro
+    realizarRetiro(monto, motivo, comprobante)
+      .then(() => {
+        alert('Retiro realizado exitosamente.');
+        $('#modalRetiro').modal('hide');
+        $('#formRetiroEfectivo')[0].reset();
+        cargarCaja(); // Recargar datos
+      })
+      .catch(error => {
+        console.error('Error en retiro:', error);
+        alert('Error al procesar el retiro: ' + error.message);
+      });
+  });
+
+  // Función para verificar administrador usando endpoint loginUser
+  function verificarAdmin(username, password) {
+    return new Promise((resolve, reject) => {
+      const email = username; // Asumiendo que username es el email
+      
+      $.ajax({
+        url: 'https://backend-banios.dev-wit.com/api/auth/loginUser',
+        type: 'POST',
+        contentType: 'application/json',
+        dataType: 'json',
+        data: JSON.stringify({ 
+          email: email, 
+          password: password 
+        }),
+        success: function(response) {
+          console.log("Respuesta completa del login:", response); // Para debugging
+          
+          // Verificar si el login fue exitoso y tiene user con role
+          if (response.message === "Login exitoso" && response.user && response.user.role) {
+            // Verificar si el usuario tiene role de admin
+            const esAdmin = response.user.role.toLowerCase() === 'admin';
+            console.log("Es admin:", esAdmin, "Role:", response.user.role); // Para debugging
+            resolve(esAdmin);
+          } else {
+            console.log("Login fallido o sin user role");
+            resolve(false);
+          }
+        },
+        error: function(xhr, status, error) {
+          console.error('Error en verificación de admin:', error, "Status:", xhr.status);
+          if (xhr.status === 401) {
+            resolve(false); // Credenciales incorrectas
+          } else {
+            reject(new Error('Error de conexión: ' + error));
+          }
+        }
+      });
+    });
+  }
+
+  // Función para realizar el retiro
+  function realizarRetiro(monto, motivo, comprobante) {
+    return new Promise((resolve, reject) => {
+      const token = sessionStorage.getItem('authToken');
+      const idAperturaCierre = localStorage.getItem('id_aperturas_cierres');
+      const numeroCaja = localStorage.getItem('numero_caja');
+      
+      // Obtener ID de usuario del token
+      const payload = parseJwt(token);
+      const idUsuario = payload.id;
+      
+      $.ajax({
+        url: 'https://backend-banios.dev-wit.com/api/retiros',
+        type: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json'
+        },
+        data: JSON.stringify({
+          id_apertura_cierre: idAperturaCierre,
+          numero_caja: numeroCaja,
+          id_usuario: idUsuario,
+          monto: monto,
+          motivo: motivo,
+          comprobante: comprobante || null
+        }),
+        success: function(response) {
+          if (response.success) {
+            resolve(response);
+          } else {
+            reject(new Error(response.message || 'Error en el retiro'));
+          }
+        },
+        error: function(xhr, status, error) {
+          reject(new Error(error));
+        }
+      });
+    });
+  }
   
     // Deshabilitar botón si la caja ya está abierta
     // Validar botones según estado de la caja al iniciar
