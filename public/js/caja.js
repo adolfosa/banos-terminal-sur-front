@@ -201,6 +201,7 @@ $(document).ready(function () {
                         $('#modalInicio').modal('hide');
                         alert('Caja abierta correctamente');
                         $('#btnAbrirCaja').prop('disabled', true);
+                        $('#btnCerrarCaja').prop('disabled', false);
                         cargarCaja(); 
                     } else {
                         if (res.error === 'Ya existe una caja abierta para este número.') {
@@ -245,21 +246,6 @@ $(document).ready(function () {
           return;
       }
 
-      // Decodificar JWT
-      function parseJwt(token) {
-          try {
-              const base64Url = token.split('.')[1];
-              const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-              const jsonPayload = decodeURIComponent(
-                  atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
-              );
-              return JSON.parse(jsonPayload);
-          } catch (err) {
-              console.error('Token inválido:', err);
-              return null;
-          }
-      }
-
       const token = sessionStorage.getItem('authToken');
       if (!token) {
           alert('Sesión no válida. Inicia sesión nuevamente.');
@@ -276,10 +262,8 @@ $(document).ready(function () {
           return;
       }
 
-      // Confirmación opcional
       if (!confirm('¿Estás seguro de cerrar la caja actual?')) return;
 
-      // Enviar solicitud al backend
       $.ajax({
           url: 'http://localhost:3000/api/caja/cerrar',
           type: 'POST',
@@ -291,14 +275,22 @@ $(document).ready(function () {
           }),
           success: function (data) {
               if (data.success) {
-                  // Limpiar estado de la caja
+                  // 🔹 Limpiar estado de la caja
                   localStorage.removeItem('id_aperturas_cierres');
                   localStorage.removeItem('estado_caja');
                   localStorage.removeItem('numero_caja');
 
-                  alert('Caja cerrada correctamente.');
+                  // 🔹 Limpiar datos de la interfaz
+                  $('#infoCajaUser').html('');
+                  $('#tablaCaja tbody').html('<tr><td colspan="9" class="text-center text-muted">Caja cerrada. No hay movimientos.</td></tr>');
+
+                  // 🔹 Desactivar botón de cerrar caja
+                  $('#btnCerrarCaja').prop('disabled', true);
+
+                  // 🔹 Habilitar abrir caja
                   $('#btnAbrirCaja').prop('disabled', false);
-                  cargarCaja(); // actualiza interfaz
+
+                  alert('Caja cerrada correctamente.');
               } else {
                   alert(data.error || 'Error desconocido.');
               }
