@@ -478,11 +478,19 @@ $(document).ready(function () {
       submitBtn.prop('disabled', true).text('Verificando...');
       
       verificarAdmin(username, password)
-        .then(esAdmin => {
-          if (esAdmin) {
+        .then(resultado => {
+          if (resultado.esAdmin) {
+            // Guardar datos del administrador en sessionStorage
+            sessionStorage.setItem('adminAuth', JSON.stringify({
+              id: resultado.userData.id,
+              username: resultado.userData.username,
+              email: resultado.userData.email,
+              timestamp: new Date().getTime()
+            }));
+            
             $('#modalAuthAdmin').modal('hide');
             
-            // CORREGIR: Parsear balance correctamente (formato chileno)
+            // Parsear balance correctamente
             const balanceText = $('#balanceActual').text().replace('$', '');
             const balanceActual = parseFloat(balanceText.replace(/\./g, '').replace(',', '.'));
             
@@ -510,10 +518,22 @@ $(document).ready(function () {
   $('#formRetiroEfectivo').on('submit', function(e) {
     e.preventDefault();
     
-    // CORREGIR: Parsear monto correctamente (formato chileno)
-    const monto = parseFloat($('#montoRetiro').val().replace(/\./g, '').replace(',', '.'));
+    // Obtener datos del admin desde sessionStorage
+    const adminAuthRaw = sessionStorage.getItem('adminAuth');
+    if (!adminAuthRaw) {
+      alert('Sesión de administrador no válida. Por favor, autentíquese nuevamente.');
+      $('#modalAuthAdmin').modal('show');
+      return;
+    }
     
-    // CORREGIR: Parsear balance correctamente (formato chileno)
+    const adminAuth = JSON.parse(adminAuthRaw);
+    const idUsuarioAdmin = adminAuth.id;
+    
+    // Parsear monto correctamente
+    const monto = parseFloat($('#montoRetiro').val().replace(/\./g, '').replace(',', '.'));
+    const motivo = $('#motivoRetiro').val() || 'Retiro de efectivo';
+    
+    // Parsear balance correctamente
     const balanceText = $('#balanceActual').text().replace('$', '');
     const balanceActual = parseFloat(balanceText.replace(/\./g, '').replace(',', '.'));
     
@@ -533,24 +553,36 @@ $(document).ready(function () {
       return;
     }
     
-    // Realizar el retiro
-    realizarRetiro(monto)
+    // Mostrar loading
+    const submitBtn = $(this).find('button[type="submit"]');
+    const originalText = submitBtn.text();
+    submitBtn.prop('disabled', true).text('Procesando...');
+    
+    // Realizar el retiro con el ID del admin
+    realizarRetiro(monto, motivo, idUsuarioAdmin)
       .then(() => {
         alert('Retiro realizado exitosamente.');
         $('#modalRetiro').modal('hide');
         $('#formRetiroEfectivo')[0].reset();
+        
+        // Limpiar sesión de admin después del retiro
+        sessionStorage.removeItem('adminAuth');
+        
         cargarCaja(); // Recargar datos
       })
       .catch(error => {
         console.error('Error en retiro:', error);
         alert('Error al procesar el retiro: ' + error.message);
+      })
+      .finally(() => {
+        submitBtn.prop('disabled', false).text(originalText);
       });
   });
 
-  // Función para verificar administrador usando endpoint loginUser
+  // Función para verificar administrador usando endpoint loginUser  y obtener su ID
   function verificarAdmin(username, password) {
     return new Promise((resolve, reject) => {
-      const email = username; // Asumiendo que username es el email
+      const email = username;
       
       $.ajax({
         url: 'https://backend-banios.dev-wit.com/api/auth/loginUser',
@@ -562,23 +594,28 @@ $(document).ready(function () {
           password: password 
         }),
         success: function(response) {
-          console.log("Respuesta completa del login:", response); // Para debugging
+          console.log("Respuesta completa del login:", response);
           
-          // Verificar si el login fue exitoso y tiene user con role
           if (response.message === "Login exitoso" && response.user && response.user.role) {
-            // Verificar si el usuario tiene role de admin
             const esAdmin = response.user.role.toLowerCase() === 'admin';
-            console.log("Es admin:", esAdmin, "Role:", response.user.role); // Para debugging
-            resolve(esAdmin);
+            
+            if (esAdmin) {
+              // Devolver tanto el estado como los datos del usuario admin
+              resolve({
+                esAdmin: true,
+                userData: response.user
+              });
+            } else {
+              resolve({ esAdmin: false });
+            }
           } else {
-            console.log("Login fallido o sin user role");
-            resolve(false);
+            resolve({ esAdmin: false });
           }
         },
         error: function(xhr, status, error) {
           console.error('Error en verificación de admin:', error, "Status:", xhr.status);
           if (xhr.status === 401) {
-            resolve(false); // Credenciales incorrectas
+            resolve({ esAdmin: false });
           } else {
             reject(new Error('Error de conexión: ' + error));
           }
@@ -588,13 +625,9 @@ $(document).ready(function () {
   }
 
   // Función para realizar el retiro
-  function realizarRetiro(monto, motivo, comprobante) {
+  function realizarRetiro(monto, motivo, idUsuarioAdmin) {
     return new Promise((resolve, reject) => {
       const token = sessionStorage.getItem('authToken');
-      
-      // Obtener ID de usuario del token
-      const payload = parseJwt(token);
-      const idUsuario = payload.id;
       
       $.ajax({
         url: 'http://localhost:3000/api/caja/retiros',
@@ -606,7 +639,7 @@ $(document).ready(function () {
         data: JSON.stringify({
           monto: monto,
           motivo: motivo,
-          id_usuario: idUsuario
+          id_usuario: idUsuarioAdmin  // Usar el ID del admin, no del usuario de caja
         }),
         success: function(response) {
           if (response.success) {
