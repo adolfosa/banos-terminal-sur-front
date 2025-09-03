@@ -204,7 +204,6 @@ $(document).ready(function () {
                 claseMonto += ' tarjeta';
               }
 
-              // ⭐⭐ CORRECCIÓN: Mostrar con el símbolo negativo ⭐⭐
               return `
                 <tr>
                   <td>${m.id}</td>
@@ -465,7 +464,7 @@ $(document).ready(function () {
     $('#modalAuthAdmin').modal('show');
   });
 
-    // Autenticación de administrador
+    // Y en el evento de autenticación, guardar el username
     $('#formAuthAdmin').on('submit', function(e) {
       e.preventDefault();
       
@@ -479,12 +478,13 @@ $(document).ready(function () {
       
       verificarAdmin(username, password)
         .then(resultado => {
-          if (resultado.esAdmin) {
-            // Guardar datos del administrador en sessionStorage
+          if (resultado.esAutorizado) {
+            // Guardar datos del usuario autorizado en sessionStorage
             sessionStorage.setItem('adminAuth', JSON.stringify({
               id: resultado.userData.id,
-              username: resultado.userData.username,
+              username: resultado.userData.username, // <- Se guarda el nombre
               email: resultado.userData.email,
+              rol: resultado.rol,
               timestamp: new Date().getTime()
             }));
             
@@ -501,7 +501,7 @@ $(document).ready(function () {
             $('#adminUsername').val('');
             $('#adminPassword').val('');
           } else {
-            alert('Credenciales incorrectas o usuario no tiene permisos de administrador.');
+            alert(resultado.mensaje || 'Credenciales incorrectas o usuario no tiene permisos para realizar retiros.');
           }
         })
         .catch(error => {
@@ -579,7 +579,7 @@ $(document).ready(function () {
       });
   });
 
-  // Función para verificar administrador usando endpoint loginUser  y obtener su ID
+  // También actualizar la función de verificación para guardar el username
   function verificarAdmin(username, password) {
     return new Promise((resolve, reject) => {
       const email = username;
@@ -597,25 +597,38 @@ $(document).ready(function () {
           console.log("Respuesta completa del login:", response);
           
           if (response.message === "Login exitoso" && response.user && response.user.role) {
-            const esAdmin = response.user.role.toLowerCase() === 'admin';
+            // Permitir múltiples roles: admin, recaudador, tesorero
+            const rolesPermitidos = ['admin', 'recaudador', 'tesorero'];
+            const rolUsuario = response.user.role.toLowerCase();
+            const tienePermiso = rolesPermitidos.includes(rolUsuario);
             
-            if (esAdmin) {
-              // Devolver tanto el estado como los datos del usuario admin
+            if (tienePermiso) {
+              // Devolver tanto el estado como los datos del usuario autorizado
               resolve({
-                esAdmin: true,
-                userData: response.user
+                esAutorizado: true,
+                userData: response.user,
+                rol: rolUsuario
               });
             } else {
-              resolve({ esAdmin: false });
+              resolve({ 
+                esAutorizado: false,
+                mensaje: 'Su rol no tiene permisos para realizar retiros'
+              });
             }
           } else {
-            resolve({ esAdmin: false });
+            resolve({ 
+              esAutorizado: false,
+              mensaje: 'Credenciales incorrectas'
+            });
           }
         },
         error: function(xhr, status, error) {
-          console.error('Error en verificación de admin:', error, "Status:", xhr.status);
+          console.error('Error en verificación:', error, "Status:", xhr.status);
           if (xhr.status === 401) {
-            resolve({ esAdmin: false });
+            resolve({ 
+              esAutorizado: false,
+              mensaje: 'Credenciales incorrectas'
+            });
           } else {
             reject(new Error('Error de conexión: ' + error));
           }
@@ -654,17 +667,36 @@ $(document).ready(function () {
       });
     });
   }
-  
-    // Deshabilitar botón si la caja ya está abierta
-    // Validar botones según estado de la caja al iniciar
-    const estadoCaja = localStorage.getItem('estado_caja');
-    if (estadoCaja === 'abierta') {
-        $('#btnAbrirCaja').prop('disabled', true);
-        $('#btnCerrarCaja').prop('disabled', false);
+
+  // Mostrar información del autorizador cuando se abre el modal
+  $('#modalRetiro').on('show.bs.modal', function() {
+    const adminAuthRaw = sessionStorage.getItem('adminAuth');
+    
+    if (adminAuthRaw) {
+      const adminAuth = JSON.parse(adminAuthRaw);
+      $('#nombreAutorizador').text(adminAuth.username); // Mostrar el nombre de usuario
+      $('#infoAutorizador').removeClass('d-none');
     } else {
-        $('#btnAbrirCaja').prop('disabled', false);
-        $('#btnCerrarCaja').prop('disabled', true);
+      $('#infoAutorizador').addClass('d-none');
     }
+  });
+
+  // Limpiar la información cuando se cierra el modal
+  $('#modalRetiro').on('hidden.bs.modal', function() {
+    $('#infoAutorizador').addClass('d-none');
+    $('#nombreAutorizador').text('');
+  });
+  
+  // Deshabilitar botón si la caja ya está abierta
+  // Validar botones según estado de la caja al iniciar
+  const estadoCaja = localStorage.getItem('estado_caja');
+  if (estadoCaja === 'abierta') {
+      $('#btnAbrirCaja').prop('disabled', true);
+      $('#btnCerrarCaja').prop('disabled', false);
+  } else {
+      $('#btnAbrirCaja').prop('disabled', false);
+      $('#btnCerrarCaja').prop('disabled', true);
+  }
   
   document.getElementById('btnVolver').addEventListener('click', () => {
     window.location.href = '/home.html';
