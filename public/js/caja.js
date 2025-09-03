@@ -414,39 +414,44 @@ $(document).ready(function () {
               observaciones: 'Cierre manual desde interfaz'
           }),
           success: function (data) {
-            if (data.success) {
-              // 🔹 Limpiar estado de la caja
-              localStorage.removeItem('id_aperturas_cierres');
-              localStorage.removeItem('estado_caja');
-              localStorage.removeItem('numero_caja');
+              if (data.success) {
+                  // 🔹 Limpiar estado de la caja
+                  localStorage.removeItem('id_aperturas_cierres');
+                  localStorage.removeItem('estado_caja');
+                  localStorage.removeItem('numero_caja');
 
-              // 🔹 Limpiar datos de la interfaz
-              $('#infoCajaUser').html('');
-              $('#tablaCaja tbody').html('<tr><td colspan="9" class="text-center text-muted">Caja cerrada. No hay movimientos.</td></tr>');
-              
-              // 🔹 Limpiar totales (NUEVO CÓDIGO)
-              $('#fondoInicial').text('$0');
-              $('#totalEfectivo').text('$0');
-              $('#totalTarjeta').text('$0');
-              $('#totalGeneral').text('$0');
-              $('#balanceActual').text('$0');
+                  // 🔹 Limpiar datos de la interfaz
+                  $('#infoCajaUser').html('');
+                  $('#tablaCaja tbody').html('<tr><td colspan="9" class="text-center text-muted">Caja cerrada. No hay movimientos.</td></tr>');
+                  
+                  // 🔹 Limpiar totales (NUEVO CÓDIGO)
+                  $('#fondoInicial').text('$0');
+                  $('#totalEfectivo').text('$0');
+                  $('#totalTarjeta').text('$0');
+                  $('#totalGeneral').text('$0');
+                  $('#balanceActual').text('$0');
+                  
+                  // 🔹 LIMPIEZA DEL TOTAL RETIRADO (CORRECCIÓN)
+                  if ($('#totalRetirado').length > 0) {
+                      $('#totalRetirado').parent().remove();
+                  }
 
-              // 🔹 Desactivar botón de cerrar caja
-              $('#btnCerrarCaja').prop('disabled', true);
+                  // 🔹 Desactivar botón de cerrar caja
+                  $('#btnCerrarCaja').prop('disabled', true);
 
-              // 🔹 Habilitar abrir caja
-              $('#btnAbrirCaja').prop('disabled', false);
+                  // 🔹 Habilitar abrir caja
+                  $('#btnAbrirCaja').prop('disabled', false);
 
-              alert('Caja cerrada correctamente.');
-            } else {
-              alert(data.error || 'Error desconocido.');
-            }
+                  alert('Caja cerrada correctamente.');
+              } else {
+                  alert(data.error || 'Error desconocido.');
+              }
           },
           error: function (xhr, status, error) {
               alert('Error en el servidor: ' + error);
           }
       });
-  });
+    });
 
   $('#btnRetiroEfectivo').on('click', function() {
     // Verificar que hay una caja abierta
