@@ -267,6 +267,34 @@
     </div>
   </div>
 
+  <!-- Modal de Autenticación para Cierre de Caja -->
+  <div class="modal fade" id="modalAuthCierre" tabindex="-1" aria-labelledby="modalAuthCierreLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header bg-warning">
+          <h5 class="modal-title" id="modalAuthCierreLabel">Autenticación Requerida</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted mb-3">Para cerrar la caja, debe autenticarse con un usuario autorizado (Supervisor, Recaudador o Tesorero).</p>
+          <form id="formAuthCierre">
+            <div class="mb-3">
+              <label for="cierreUsername" class="form-label">Usuario</label>
+              <input type="text" class="form-control" id="cierreUsername" required>
+            </div>
+            <div class="mb-3">
+              <label for="cierrePassword" class="form-label">Contraseña</label>
+              <input type="password" class="form-control" id="cierrePassword" required>
+            </div>
+            <div class="d-grid">
+              <button type="submit" class="btn btn-warning">Verificar Credenciales</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal de Retiro -->
   <div class="modal fade" id="modalRetiro" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
@@ -276,7 +304,6 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
         </div>
         <div class="modal-body">
-          <!-- Información del autorizador (nueva línea) -->
           <div id="infoAutorizador" class="alert alert-secondary py-2 mb-3 d-none">
             <small>Autorizado por: <strong id="nombreAutorizador"></strong></small>
           </div>

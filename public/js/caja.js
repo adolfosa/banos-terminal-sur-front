@@ -377,80 +377,141 @@ $(document).ready(function () {
 });
 
   $('#btnCerrarCaja').on('click', function () {
-      const estadoCaja = localStorage.getItem('estado_caja');
-      const idSesion = localStorage.getItem('id_aperturas_cierres');
+    const estadoCaja = localStorage.getItem('estado_caja');
+    const idSesion = localStorage.getItem('id_aperturas_cierres');
 
-      if (estadoCaja !== 'abierta' || !idSesion) {
-          alert('No hay caja abierta para cerrar.');
-          return;
-      }
+    if (estadoCaja !== 'abierta' || !idSesion) {
+      alert('No hay caja abierta para cerrar.');
+      return;
+    }
 
-      const token = sessionStorage.getItem('authToken');
-      if (!token) {
-          alert('Sesión no válida. Inicia sesión nuevamente.');
-          sessionStorage.clear();
-          window.location.href = '/login.html';
-          return;
-      }
+    // Mostrar modal de autenticación para cierre
+    $('#modalAuthCierre').modal('show');
+  });
 
-      const payload = parseJwt(token);
-      const id_usuario_cierre = payload?.id;
-
-      if (!id_usuario_cierre || isNaN(id_usuario_cierre)) {
-          alert('Usuario inválido para cerrar caja.');
-          return;
-      }
-
-      if (!confirm('¿Estás seguro de cerrar la caja actual?')) return;
-
-      $.ajax({
-          url: 'http://localhost:3000/api/caja/cerrar',
-          type: 'POST',
-          contentType: 'application/json',
-          data: JSON.stringify({
-              id_aperturas_cierres: parseInt(idSesion),
-              id_usuario_cierre: parseInt(id_usuario_cierre),
-              observaciones: 'Cierre manual desde interfaz'
-          }),
-          success: function (data) {
-              if (data.success) {
-                  // 🔹 Limpiar estado de la caja
-                  localStorage.removeItem('id_aperturas_cierres');
-                  localStorage.removeItem('estado_caja');
-                  localStorage.removeItem('numero_caja');
-
-                  // 🔹 Limpiar datos de la interfaz
-                  $('#infoCajaUser').html('');
-                  $('#tablaCaja tbody').html('<tr><td colspan="9" class="text-center text-muted">Caja cerrada. No hay movimientos.</td></tr>');
-                  
-                  // 🔹 Limpiar totales (NUEVO CÓDIGO)
-                  $('#fondoInicial').text('$0');
-                  $('#totalEfectivo').text('$0');
-                  $('#totalTarjeta').text('$0');
-                  $('#totalGeneral').text('$0');
-                  $('#balanceActual').text('$0');
-                  
-                  // 🔹 LIMPIEZA DEL TOTAL RETIRADO (CORRECCIÓN)
-                  if ($('#totalRetirado').length > 0) {
-                      $('#totalRetirado').parent().remove();
-                  }
-
-                  // 🔹 Desactivar botón de cerrar caja
-                  $('#btnCerrarCaja').prop('disabled', true);
-
-                  // 🔹 Habilitar abrir caja
-                  $('#btnAbrirCaja').prop('disabled', false);
-
-                  alert('Caja cerrada correctamente.');
-              } else {
-                  alert(data.error || 'Error desconocido.');
-              }
-          },
-          error: function (xhr, status, error) {
-              alert('Error en el servidor: ' + error);
-          }
+  // Autenticación para cierre de caja
+  $('#formAuthCierre').on('submit', function(e) {
+    e.preventDefault();
+    
+    const username = $('#cierreUsername').val();
+    const password = $('#cierrePassword').val();
+    
+    // Mostrar indicador de carga
+    const submitBtn = $(this).find('button[type="submit"]');
+    const originalText = submitBtn.text();
+    submitBtn.prop('disabled', true).text('Verificando...');
+    
+    // Agregar 'cierre' como tercer parámetro
+    verificarAdmin(username, password, 'cierre')
+      .then(resultado => {
+        if (resultado.esAutorizado) {
+          // Guardar datos del usuario autorizado en sessionStorage
+          sessionStorage.setItem('cierreAuth', JSON.stringify({
+            id: resultado.userData.id,
+            username: resultado.userData.username,
+            email: resultado.userData.email,
+            rol: resultado.rol,
+            timestamp: new Date().getTime()
+          }));
+          
+          $('#modalAuthCierre').modal('hide');
+          
+          // Proceder con el cierre de caja
+          realizarCierreCaja(resultado.userData.id);
+          
+          // Limpiar formulario
+          $('#cierreUsername').val('');
+          $('#cierrePassword').val('');
+        } else {
+          alert(resultado.mensaje || 'Credenciales incorrectas o usuario no tiene permisos para cerrar caja.');
+        }
+      })
+      .catch(error => {
+        console.error('Error en autenticación:', error);
+        alert('Error al verificar credenciales: ' + error.message);
+      })
+      .finally(() => {
+        // Restaurar botón
+        submitBtn.prop('disabled', false).text(originalText);
       });
+  });
+
+  // Función para realizar el cierre de caja después de la autenticación
+  function realizarCierreCaja(idUsuarioCierre) {
+    const estadoCaja = localStorage.getItem('estado_caja');
+    const idSesion = localStorage.getItem('id_aperturas_cierres');
+
+    if (estadoCaja !== 'abierta' || !idSesion) {
+      alert('No hay caja abierta para cerrar.');
+      return;
+    }
+
+    const token = sessionStorage.getItem('authToken');
+    if (!token) {
+      alert('Sesión no válida. Inicia sesión nuevamente.');
+      sessionStorage.clear();
+      window.location.href = '/login.html';
+      return;
+    }
+
+    if (!idUsuarioCierre || isNaN(idUsuarioCierre)) {
+      alert('Usuario inválido para cerrar caja.');
+      return;
+    }
+
+    if (!confirm('¿Estás seguro de cerrar la caja actual?')) return;
+
+    $.ajax({
+      url: 'http://localhost:3000/api/caja/cerrar',
+      type: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({
+        id_aperturas_cierres: parseInt(idSesion),
+        id_usuario_cierre: parseInt(idUsuarioCierre),
+        observaciones: 'Cierre manual desde interfaz con autenticación'
+      }),
+      success: function (data) {
+        if (data.success) {
+          // 🔹 Limpiar estado de la caja
+          localStorage.removeItem('id_aperturas_cierres');
+          localStorage.removeItem('estado_caja');
+          localStorage.removeItem('numero_caja');
+
+          // 🔹 Limpiar datos de la interfaz
+          $('#infoCajaUser').html('');
+          $('#tablaCaja tbody').html('<tr><td colspan="9" class="text-center text-muted">Caja cerrada. No hay movimientos.</td></tr>');
+          
+          // 🔹 Limpiar totales
+          $('#fondoInicial').text('$0');
+          $('#totalEfectivo').text('$0');
+          $('#totalTarjeta').text('$0');
+          $('#totalGeneral').text('$0');
+          $('#balanceActual').text('$0');
+          
+          // 🔹 LIMPIEZA DEL TOTAL RETIRADO
+          if ($('#totalRetirado').length > 0) {
+            $('#totalRetirado').parent().remove();
+          }
+
+          // 🔹 Desactivar botón de cerrar caja
+          $('#btnCerrarCaja').prop('disabled', true);
+
+          // 🔹 Habilitar abrir caja
+          $('#btnAbrirCaja').prop('disabled', false);
+
+          // 🔹 Limpiar sesión de autenticación de cierre
+          sessionStorage.removeItem('cierreAuth');
+
+          alert('Caja cerrada correctamente.');
+        } else {
+          alert(data.error || 'Error desconocido.');
+        }
+      },
+      error: function (xhr, status, error) {
+        alert('Error en el servidor: ' + error);
+      }
     });
+  }
 
   $('#btnRetiroEfectivo').on('click', function() {
     // Verificar que hay una caja abierta
@@ -465,6 +526,7 @@ $(document).ready(function () {
   });
 
     // Y en el evento de autenticación, guardar el username
+    // En la autenticación para retiros (se mantiene igual)
     $('#formAuthAdmin').on('submit', function(e) {
       e.preventDefault();
       
@@ -476,13 +538,14 @@ $(document).ready(function () {
       const originalText = submitBtn.text();
       submitBtn.prop('disabled', true).text('Verificando...');
       
+      // Se llama sin tercer parámetro (usa 'retiro' por defecto)
       verificarAdmin(username, password)
         .then(resultado => {
           if (resultado.esAutorizado) {
             // Guardar datos del usuario autorizado en sessionStorage
             sessionStorage.setItem('adminAuth', JSON.stringify({
               id: resultado.userData.id,
-              username: resultado.userData.username, // <- Se guarda el nombre
+              username: resultado.userData.username,
               email: resultado.userData.email,
               rol: resultado.rol,
               timestamp: new Date().getTime()
@@ -579,7 +642,7 @@ $(document).ready(function () {
       });
   });
 
-  function verificarAdmin(username, password) {
+  function verificarAdmin(username, password, tipoOperacion = 'retiro') {
     return new Promise((resolve, reject) => {
       const email = username;
       
@@ -596,22 +659,38 @@ $(document).ready(function () {
           console.log("Respuesta completa del login:", response);
           
           if (response.message === "Login exitoso" && response.user && response.user.role) {
-            // Permitir múltiples roles: admin, recaudador, tesorero
-            const rolesPermitidos = ['admin', 'recaudador', 'tesorero'];
             const rolUsuario = response.user.role.toLowerCase();
+            
+            // Definir roles permitidos según el tipo de operación
+            let rolesPermitidos = [];
+            
+            if (tipoOperacion === 'cierre') {
+              // Para cierre de caja: admin, supervisor, recaudador, tesorero
+              rolesPermitidos = ['admin', 'supervisor', 'recaudador', 'tesorero'];
+            } else if (tipoOperacion === 'retiro') {
+              // Para retiro de efectivo: admin, recaudador, tesorero (excluye supervisor)
+              rolesPermitidos = ['admin', 'recaudador', 'tesorero'];
+            }
+            
             const tienePermiso = rolesPermitidos.includes(rolUsuario);
             
             if (tienePermiso) {
-              // Devolver tanto el estado como los datos del usuario autorizado
               resolve({
                 esAutorizado: true,
                 userData: response.user,
                 rol: rolUsuario
               });
             } else {
+              let mensaje = '';
+              if (tipoOperacion === 'cierre') {
+                mensaje = 'Su rol no tiene permisos para cerrar caja. Se requieren roles: Admin, Supervisor, Recaudador o Tesorero.';
+              } else {
+                mensaje = 'Su rol no tiene permisos para realizar retiros. Se requieren roles: Admin, Recaudador o Tesorero.';
+              }
+              
               resolve({ 
                 esAutorizado: false,
-                mensaje: 'Su rol no tiene permisos para realizar retiros'
+                mensaje: mensaje
               });
             }
           } else {

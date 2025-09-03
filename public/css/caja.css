@@ -304,3 +304,19 @@ body {
 #infoAutorizador strong {
   text-transform: capitalize;
 }
+
+#modalAuthCierre .modal-header {
+  background-color: #ffc107;
+  color: #000;
+}
+
+#modalAuthCierre .btn-warning {
+  background-color: #ffc107;
+  border-color: #ffc107;
+  color: #000;
+}
+
+#modalAuthCierre .btn-warning:hover {
+  background-color: #e0a800;
+  border-color: #e0a800;
+}
