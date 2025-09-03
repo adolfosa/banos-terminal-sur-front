@@ -440,6 +440,9 @@ $(document).ready(function () {
   function realizarCierreCaja(idUsuarioCierre) {
     const estadoCaja = localStorage.getItem('estado_caja');
     const idSesion = localStorage.getItem('id_aperturas_cierres');
+    const usuarioRaw = sessionStorage.getItem('usuario');
+    const usuario = usuarioRaw ? JSON.parse(usuarioRaw) : null;
+    const nombreCajero = usuario ? usuario.username : 'Cajero';
 
     if (estadoCaja !== 'abierta' || !idSesion) {
       alert('No hay caja abierta para cerrar.');
@@ -468,7 +471,8 @@ $(document).ready(function () {
       data: JSON.stringify({
         id_aperturas_cierres: parseInt(idSesion),
         id_usuario_cierre: parseInt(idUsuarioCierre),
-        observaciones: 'Cierre manual desde interfaz con autenticación'
+        observaciones: 'Cierre manual desde interfaz con autenticación',
+        nombre_cajero: nombreCajero
       }),
       success: function (data) {
         if (data.success) {
