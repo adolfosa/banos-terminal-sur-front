@@ -6,52 +6,58 @@ $(document).ready(function () {
   
   // Función para calcular y mostrar totales
   function calcularTotales(movimientos, montoInicial = 0) {
-    let totalEfectivo = 0;
-    let totalTarjeta = 0;
-    let totalRetiros = 0;
-    
-    movimientos.forEach(movimiento => {
-      const monto = parseFloat(movimiento.monto) || 0;
+      let totalEfectivo = 0;
+      let totalTarjeta = 0;
+      let totalRetiros = 0;
       
-      // Detectar retiros por el tipo de servicio o medio de pago
-      if (movimiento.tipo_servicio === 'RETIRO' || 
-          (movimiento.medio_pago && movimiento.medio_pago.toLowerCase().includes('retiro'))) {
-        totalRetiros += Math.abs(monto); // Los retiros vienen como negativo
-      } else if (movimiento.medio_pago && movimiento.medio_pago.toLowerCase().includes('efectivo')) {
-        totalEfectivo += monto;
-      } else if (movimiento.medio_pago && (
-        movimiento.medio_pago.toLowerCase().includes('tarjeta') || 
-        movimiento.medio_pago.toLowerCase().includes('débito') ||
-        movimiento.medio_pago.toLowerCase().includes('crédito')
-      )) {
-        totalTarjeta += monto;
+      movimientos.forEach(movimiento => {
+          const monto = parseFloat(movimiento.monto) || 0;
+          
+          // Detectar retiros por el tipo de servicio o medio de pago
+          const esRetiro = movimiento.tipo_servicio === 'RETIRO' || 
+              (movimiento.medio_pago && movimiento.medio_pago.toLowerCase().includes('retiro')) ||
+              (movimiento.nombre_servicio && movimiento.nombre_servicio.toLowerCase().includes('retiro'));
+          
+          if (esRetiro) {
+              totalRetiros += Math.abs(monto); // Los retiros vienen como negativo
+          } else if (movimiento.medio_pago && movimiento.medio_pago.toLowerCase().includes('efectivo')) {
+              totalEfectivo += monto;
+          } else if (movimiento.medio_pago && (
+              movimiento.medio_pago.toLowerCase().includes('tarjeta') || 
+              movimiento.medio_pago.toLowerCase().includes('débito') ||
+              movimiento.medio_pago.toLowerCase().includes('crédito')
+          )) {
+              totalTarjeta += monto;
+          }
+      });
+      
+      const totalGeneral = totalEfectivo + totalTarjeta;
+      // CORRECCIÓN: El balance actual es el monto inicial + los ingresos en efectivo - los retiros
+      const balanceActual = parseFloat(montoInicial) + totalEfectivo - totalRetiros;
+      
+      // Actualizar UI con formato chileno
+      const montoInicialNum = parseFloat(montoInicial) || 0;
+      $('#fondoInicial').text('$' + montoInicialNum.toLocaleString('es-CL'));
+      $('#totalEfectivo').text('$' + totalEfectivo.toLocaleString('es-CL'));
+      $('#totalTarjeta').text('$' + totalTarjeta.toLocaleString('es-CL'));
+      $('#totalGeneral').text('$' + totalGeneral.toLocaleString('es-CL'));
+      $('#balanceActual').text('$' + balanceActual.toLocaleString('es-CL'));
+      
+      // Mostrar total retirado si hay retiros
+      if (totalRetiros > 0) {
+          if ($('#totalRetirado').length === 0) {
+              $('#resumenTotales').append(`
+                  <div class="total-card retirado">
+                      <div class="total-titulo">TOTAL RETIRADO</div>
+                      <div class="total-valor" id="totalRetirado">$${totalRetiros.toLocaleString('es-CL')}</div>
+                  </div>
+              `);
+          } else {
+              $('#totalRetirado').text('$' + totalRetiros.toLocaleString('es-CL'));
+          }
+      } else if ($('#totalRetirado').length > 0) {
+          $('#totalRetirado').parent().remove();
       }
-    });
-    
-    const totalGeneral = totalEfectivo + totalTarjeta;
-    const balanceActual = parseFloat(montoInicial) + totalEfectivo - totalRetiros;
-    
-    // Actualizar UI con formato chileno
-    const montoInicialNum = parseFloat(montoInicial) || 0;
-    $('#fondoInicial').text('$' + montoInicialNum.toLocaleString('es-CL'));
-    $('#totalEfectivo').text('$' + totalEfectivo.toLocaleString('es-CL'));
-    $('#totalTarjeta').text('$' + totalTarjeta.toLocaleString('es-CL'));
-    $('#totalGeneral').text('$' + totalGeneral.toLocaleString('es-CL'));
-    $('#balanceActual').text('$' + balanceActual.toLocaleString('es-CL'));
-    
-    // Mostrar total retirado si hay retiros
-    if (totalRetiros > 0) {
-      if ($('#totalRetirado').length === 0) {
-        $('#resumenTotales').append(`
-          <div class="total-card retirado">
-            <div class="total-titulo">TOTAL RETIRADO</div>
-            <div class="total-valor" id="totalRetirado">$${totalRetiros.toLocaleString('es-CL')}</div>
-          </div>
-        `);
-      } else {
-        $('#totalRetirado').text('$' + totalRetiros.toLocaleString('es-CL'));
-      }
-    }
   }
 
   // Helper para decodificar JWT
@@ -170,6 +176,7 @@ $(document).ready(function () {
               return;
             }
 
+            // En la función que crea las filas de la tabla, cambia:
             const filas = resMovimientos.movimientos.map(m => {
               const fecha = new Date(m.fecha);
               const dia = String(fecha.getDate()).padStart(2, '0');
@@ -186,7 +193,7 @@ $(document).ready(function () {
                   (m.nombre_servicio && m.nombre_servicio.toLowerCase().includes('retiro'))) {
                 claseMonto += ' retiro';
                 simbolo = '-';
-                montoMostrar = Math.abs(montoMostrar);
+                montoMostrar = Math.abs(montoMostrar); // Valor absoluto para mostrar
               } else if (m.medio_pago && m.medio_pago.toLowerCase().includes('efectivo')) {
                 claseMonto += ' efectivo';
               } else if (m.medio_pago && (
@@ -197,6 +204,7 @@ $(document).ready(function () {
                 claseMonto += ' tarjeta';
               }
 
+              // ⭐⭐ CORRECCIÓN: Mostrar con el símbolo negativo ⭐⭐
               return `
                 <tr>
                   <td>${m.id}</td>
@@ -204,7 +212,7 @@ $(document).ready(function () {
                   <td>${m.hora}</td>
                   <td>${m.nombre_servicio}</td>
                   <td>${m.medio_pago}</td>
-                  <td class="${claseMonto}">$${parseFloat(m.monto || 0).toLocaleString()}</td>
+                  <td class="${claseMonto}">${simbolo}$${montoMostrar.toLocaleString('es-CL')}</td>
                   <td>${m.nombre_usuario}</td>            
                 </tr>
               `;
@@ -441,57 +449,57 @@ $(document).ready(function () {
   });
 
   $('#btnRetiroEfectivo').on('click', function() {
-  // Verificar que hay una caja abierta
-  const estadoCaja = localStorage.getItem('estado_caja');
-  if (estadoCaja !== 'abierta') {
-    alert('Debe tener una caja abierta para realizar retiros.');
-    return;
-  }
-  
-  // Mostrar modal de autenticación primero
-  $('#modalAuthAdmin').modal('show');
-});
-
-  // Autenticación de administrador
-  $('#formAuthAdmin').on('submit', function(e) {
-    e.preventDefault();
+    // Verificar que hay una caja abierta
+    const estadoCaja = localStorage.getItem('estado_caja');
+    if (estadoCaja !== 'abierta') {
+      alert('Debe tener una caja abierta para realizar retiros.');
+      return;
+    }
     
-    const username = $('#adminUsername').val();
-    const password = $('#adminPassword').val();
-    
-    // Mostrar indicador de carga
-    const submitBtn = $(this).find('button[type="submit"]');
-    const originalText = submitBtn.text();
-    submitBtn.prop('disabled', true).text('Verificando...');
-    
-    verificarAdmin(username, password)
-      .then(esAdmin => {
-        if (esAdmin) {
-          $('#modalAuthAdmin').modal('hide');
-          
-          // CORREGIR: Parsear balance correctamente (formato chileno)
-          const balanceText = $('#balanceActual').text().replace('$', '');
-          const balanceActual = parseFloat(balanceText.replace(/\./g, '').replace(',', '.'));
-          
-          $('#balanceDisponible').text('$' + balanceActual.toLocaleString('es-CL'));
-          $('#modalRetiro').modal('show');
-          
-          // Limpiar formulario
-          $('#adminUsername').val('');
-          $('#adminPassword').val('');
-        } else {
-          alert('Credenciales incorrectas o usuario no tiene permisos de administrador.');
-        }
-      })
-      .catch(error => {
-        console.error('Error en autenticación:', error);
-        alert('Error al verificar credenciales: ' + error.message);
-      })
-      .finally(() => {
-        // Restaurar botón
-        submitBtn.prop('disabled', false).text(originalText);
-      });
+    // Mostrar modal de autenticación primero
+    $('#modalAuthAdmin').modal('show');
   });
+
+    // Autenticación de administrador
+    $('#formAuthAdmin').on('submit', function(e) {
+      e.preventDefault();
+      
+      const username = $('#adminUsername').val();
+      const password = $('#adminPassword').val();
+      
+      // Mostrar indicador de carga
+      const submitBtn = $(this).find('button[type="submit"]');
+      const originalText = submitBtn.text();
+      submitBtn.prop('disabled', true).text('Verificando...');
+      
+      verificarAdmin(username, password)
+        .then(esAdmin => {
+          if (esAdmin) {
+            $('#modalAuthAdmin').modal('hide');
+            
+            // CORREGIR: Parsear balance correctamente (formato chileno)
+            const balanceText = $('#balanceActual').text().replace('$', '');
+            const balanceActual = parseFloat(balanceText.replace(/\./g, '').replace(',', '.'));
+            
+            $('#balanceDisponible').text('$' + balanceActual.toLocaleString('es-CL'));
+            $('#modalRetiro').modal('show');
+            
+            // Limpiar formulario
+            $('#adminUsername').val('');
+            $('#adminPassword').val('');
+          } else {
+            alert('Credenciales incorrectas o usuario no tiene permisos de administrador.');
+          }
+        })
+        .catch(error => {
+          console.error('Error en autenticación:', error);
+          alert('Error al verificar credenciales: ' + error.message);
+        })
+        .finally(() => {
+          // Restaurar botón
+          submitBtn.prop('disabled', false).text(originalText);
+        });
+    });
 
   // Procesar retiro de efectivo
   $('#formRetiroEfectivo').on('submit', function(e) {
@@ -584,7 +592,7 @@ $(document).ready(function () {
       const idUsuario = payload.id;
       
       $.ajax({
-        url: 'http://localhost:3000/api/retiros', // Nuevo endpoint
+        url: 'http://localhost:3000/api/caja/retiros',
         type: 'POST',
         headers: {
           'Authorization': 'Bearer ' + token,
