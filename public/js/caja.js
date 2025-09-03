@@ -579,7 +579,6 @@ $(document).ready(function () {
       });
   });
 
-  // También actualizar la función de verificación para guardar el username
   function verificarAdmin(username, password) {
     return new Promise((resolve, reject) => {
       const email = username;
@@ -642,6 +641,11 @@ $(document).ready(function () {
     return new Promise((resolve, reject) => {
       const token = sessionStorage.getItem('authToken');
       
+      // Obtener el nombre del cajero desde sessionStorage
+      const usuarioRaw = sessionStorage.getItem('usuario');
+      const usuario = usuarioRaw ? JSON.parse(usuarioRaw) : null;
+      const nombre_cajero = usuario ? usuario.username : 'Cajero';
+      
       $.ajax({
         url: 'http://localhost:3000/api/caja/retiros',
         type: 'POST',
@@ -652,7 +656,8 @@ $(document).ready(function () {
         data: JSON.stringify({
           monto: monto,
           motivo: motivo,
-          id_usuario: idUsuarioAdmin  // Usar el ID del admin, no del usuario de caja
+          id_usuario: idUsuarioAdmin,  // ID del admin que autoriza
+          nombre_cajero: nombre_cajero  // Nombre del cajero que realiza la operación
         }),
         success: function(response) {
           if (response.success) {
