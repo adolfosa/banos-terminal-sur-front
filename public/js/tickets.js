@@ -49,7 +49,10 @@ async function cargarServicios() {
 
     serviciosDisponibles = {};
 
-    data.data.forEach(s => {
+    // Filtrar solo servicios con estado activo
+    const serviciosActivos = data.data.filter(s => s.estado === 'activo');
+
+    serviciosActivos.forEach(s => {
       serviciosDisponibles[s.tipo] = {
         id: s.id,
         nombre: s.nombre,
@@ -111,7 +114,7 @@ async function cargarServicios() {
       });
     });
 
-    console.log("Servicios cargados:", serviciosDisponibles);
+    console.log("Servicios activos cargados:", serviciosDisponibles);
 
   } catch (err) {
     console.error('Error al cargar servicios:', err);
