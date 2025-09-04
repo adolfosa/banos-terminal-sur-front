@@ -244,6 +244,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/simple-keyboard/3.8.67/index.min.js"></script>
   <script src="/js/teclado.js"></script>
   <script>
+    const sweetAlertScript = document.createElement('script');
+    sweetAlertScript.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11';
+    document.head.appendChild(sweetAlertScript);
     tecladoVirtual.init();
 
     // Activar el teclado en cualquier input con clase 'usar-teclado'
@@ -288,10 +291,14 @@
 
         const user = JSON.parse(sessionStorage.getItem("usuario"));
         if (!user) {
-          showModalAlert("No hay usuario en sesión", "danger");
-          submitBtn.textContent = originalText;
-          submitBtn.disabled = false;
-          return;
+            Swal.fire({
+                icon: 'error',
+                title: 'Error de sesión',
+                text: 'No hay usuario en sesión'
+            });
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+            return;
         }
 
         const claveActual = document.getElementById('clave_actual').value;
@@ -299,71 +306,117 @@
         const confirmarClave = document.getElementById('confirmar_clave').value;
 
         if (nuevaClave !== confirmarClave) {
-          showModalAlert('Las contraseñas nuevas no coinciden', 'danger');
-          submitBtn.textContent = originalText;
-          submitBtn.disabled = false;
-          return;
+            Swal.fire({
+                icon: 'error',
+                title: 'Contraseñas no coinciden',
+                text: 'Las contraseñas nuevas no coinciden'
+            });
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+            return;
         }
 
         if (nuevaClave.length < 6) {
-          showModalAlert('La nueva contraseña debe tener al menos 6 caracteres', 'danger');
-          submitBtn.textContent = originalText;
-          submitBtn.disabled = false;
-          return;
+            Swal.fire({
+                icon: 'error',
+                title: 'Contraseña muy corta',
+                text: 'La nueva contraseña debe tener al menos 6 caracteres'
+            });
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+            return;
         }
 
         // Construir el payload con los datos del usuario actual + nueva contraseña
         const payload = {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          role: user.role,
-          password: nuevaClave,
-          currentPassword: claveActual  // Añadimos la contraseña actual para validación
+            username: user.username,
+            email: user.email,
+            role: user.role,
+            password: nuevaClave
         };
 
         try {
-          const response = await fetch("https://backend-banios.dev-wit.com/api/users", {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${sessionStorage.getItem("authToken") || ''}`
-            },
-            body: JSON.stringify(payload)
-          });
+            // Primero verificar la contraseña actual
+            const verifyResponse = await fetch("https://backend-banios.dev-wit.com/api/auth/loginUser", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    email: user.email,
+                    password: claveActual
+                })
+            });
 
-          // Manejo específico del error 401
-          if (response.status === 401) {
-            showModalAlert("No hay token válido", "danger");
-            submitBtn.textContent = originalText;
-            submitBtn.disabled = false;
-            return;
-          }
+            if (!verifyResponse.ok) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Contraseña incorrecta',
+                    text: 'La contraseña actual es incorrecta'
+                });
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+                return;
+            }
 
-          if (!response.ok) {
-            const errorData = await response.json();
-            showModalAlert("Error: " + (errorData.message || "No se pudo cambiar la contraseña"), "danger");
-            submitBtn.textContent = originalText;
-            submitBtn.disabled = false;
-            return;
-          }
+            // Si la contraseña actual es correcta, proceder con el cambio
+            const response = await fetch(`https://backend-banios.dev-wit.com/api/users/${user.id}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${sessionStorage.getItem("authToken") || ''}`
+                },
+                body: JSON.stringify(payload)
+            });
 
-          // Éxito
-          showModalAlert("Contraseña cambiada exitosamente", "success");
-          
-          // Limpiar formulario y cerrar modal después de 2 segundos
-          setTimeout(() => {
-            document.getElementById('formCambioClave').reset();
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modalCambioClave'));
-            modal.hide();
-          }, 2000);
-          
+            // Manejo específico del error 401
+            if (response.status === 401) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Sesión expirada',
+                    text: 'No hay token válido. Por favor, inicie sesión nuevamente.'
+                });
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+                return;
+            }
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: errorData.message || 'No se pudo cambiar la contraseña'
+                });
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+                return;
+            }
+
+            // Éxito - Mostrar SweetAlert de éxito
+            Swal.fire({
+                icon: 'success',
+                title: '¡Contraseña cambiada!',
+                text: 'Contraseña cambiada exitosamente',
+                timer: 2000,
+                showConfirmButton: false
+            }).then(() => {
+                // Limpiar formulario y cerrar modal
+                document.getElementById('formCambioClave').reset();
+                const modal = bootstrap.Modal.getInstance(document.getElementById('modalCambioClave'));
+                modal.hide();
+            });
+            
         } catch (err) {
-          console.error(err);
-          showModalAlert("Ocurrió un error al intentar cambiar la contraseña", "danger");
+            console.error(err);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Ocurrió un error al intentar cambiar la contraseña'
+            });
         } finally {
-          submitBtn.textContent = originalText;
-          submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
         }
     });
 
