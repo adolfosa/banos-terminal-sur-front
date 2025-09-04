@@ -1,4 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
+  // Cargar SweetAlert desde CDN
+  const sweetAlertScript = document.createElement('script');
+  sweetAlertScript.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11';
+  document.head.appendChild(sweetAlertScript);
+
   const loginForm = document.getElementById('loginForm');
   const logoutBtn = document.getElementById('logoutBtn');
 
@@ -27,12 +32,20 @@ document.addEventListener('DOMContentLoaded', () => {
           // Redirigir al home
           window.location.href = 'home.html';
         } else {
-          alert(result.error || 'Error al iniciar sesión');
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: result.error || 'Error al iniciar sesión'
+          });
         }
 
       } catch (err) {
         console.error('Error al iniciar sesión:', err);
-        alert('Ocurrió un error en el servidor');
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Ocurrió un error en el servidor'
+        });
       }
     });
   }
@@ -74,16 +87,29 @@ document.addEventListener('DOMContentLoaded', () => {
         const result = await response.json();
 
         if (response.ok) {
-          alert(result.message || 'Se ha enviado un correo para restablecer tu contraseña');
+          Swal.fire({
+            icon: 'success',
+            title: 'Éxito',
+            text: result.message || 'Se ha enviado un correo para restablecer tu contraseña'
+          });
+          
           const modal = document.getElementById('modalRecuperar');
           if (modal) modal.style.display = 'none';
           formRecuperar.reset();
         } else {
-          alert(result.error || 'Error al procesar la solicitud');
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: result.error || 'Error al procesar la solicitud'
+          });
         }
       } catch (err) {
         console.error('Error al recuperar contraseña:', err);
-        alert('Ocurrió un error en el servidor');
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Ocurrió un error en el servidor'
+        });
       }
     });
   }
@@ -115,11 +141,19 @@ function cerrarSesion() {
         sessionStorage.clear(); 
         window.location.href = '/login.html';
       } else {
-        alert('No se pudo cerrar sesión correctamente.');
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'No se pudo cerrar sesión correctamente.'
+        });
       }
     })
     .catch(err => {
       console.error('Error al cerrar sesión:', err);
-      alert('Error al cerrar sesión.');
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Error al cerrar sesión.'
+      });
     });
 }

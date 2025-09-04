@@ -79,40 +79,45 @@ async function cargarServicios() {
 
     document.querySelectorAll(".generarQR").forEach((btn) => {
       btn.addEventListener("click", (e) => {
-        e.preventDefault();
+          e.preventDefault();
 
-        const estado_caja = localStorage.getItem('estado_caja');
-        const id_aperturas_cierres = localStorage.getItem('id_aperturas_cierres');
+          const estado_caja = localStorage.getItem('estado_caja');
+          const id_aperturas_cierres = localStorage.getItem('id_aperturas_cierres');
 
-        if (estado_caja !== 'abierta') {
-          alert('Por favor, primero debe abrir la caja antes de generar un QR.');
-          return;
-        }
+          if (estado_caja !== 'abierta') {
+              Swal.fire({
+                  icon: 'warning',
+                  title: 'Caja cerrada',
+                  text: 'Por favor, primero debe abrir la caja antes de generar un QR.',
+                  confirmButtonText: 'Entendido'
+              });
+              return;
+          }
 
-        const fechaHoraAct = new Date();
-        const horaStr = `${fechaHoraAct.getHours().toString().padStart(2, '0')}:${fechaHoraAct.getMinutes().toString().padStart(2, '0')}:${fechaHoraAct.getSeconds().toString().padStart(2, '0')}`;
-        const fechaStr = fechaHoraAct.toISOString().split("T")[0];
-        const tipoStr = btn.dataset.tipo;
-        const numeroT = generarTokenNumerico();
-        const valor = getPrecio(tipoStr);
+          const fechaHoraAct = new Date();
+          const horaStr = `${fechaHoraAct.getHours().toString().padStart(2, '0')}:${fechaHoraAct.getMinutes().toString().padStart(2, '0')}:${fechaHoraAct.getSeconds().toString().padStart(2, '0')}`;
+          const fechaStr = fechaHoraAct.toISOString().split("T")[0];
+          const tipoStr = btn.dataset.tipo;
+          const numeroT = generarTokenNumerico();
+          const valor = getPrecio(tipoStr);
 
-        datosPendientes = {
-          Codigo: numeroT,
-          hora: horaStr,
-          fecha: fechaStr,
-          tipo: tipoStr,
-          valor: valor,
-          id_caja: id_aperturas_cierres,
-          estado_caja
-        };
+          datosPendientes = {
+              Codigo: numeroT,
+              hora: horaStr,
+              fecha: fechaStr,
+              tipo: tipoStr,
+              valor: valor,
+              id_caja: id_aperturas_cierres,
+              estado_caja
+          };
 
-        botonActivo = btn;
-        btn.disabled = true;
-        btn.classList.add("disabled");
+          botonActivo = btn;
+          btn.disabled = true;
+          btn.classList.add("disabled");
 
-        document.getElementById("modalPago").style.display = "flex";
+          document.getElementById("modalPago").style.display = "flex";
       });
-    });
+  });
 
     console.log("Servicios activos cargados:", serviciosDisponibles);
 
