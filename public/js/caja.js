@@ -851,9 +851,9 @@ $(document).ready(function () {
             } else {
               let mensaje = '';
               if (tipoOperacion === 'cierre') {
-                mensaje = 'Su rol no tiene permisos para cerrar caja. Se requieren roles: Admin, Supervisor, Recaudador o Tesorero.';
+                mensaje = 'Su rol no tiene permisos para cerrar caja.';
               } else {
-                mensaje = 'Su rol no tiene permisos para realizar retiros. Se requieren roles: Admin, Recaudador o Tesorero.';
+                mensaje = 'Su rol no tiene permisos para realizar retiros.';
               }
               
               resolve({ 
