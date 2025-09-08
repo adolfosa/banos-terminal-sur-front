@@ -2,6 +2,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const token = sessionStorage.getItem('authToken');
   const usuarioJSON = sessionStorage.getItem('usuario');
 
+  function parseJwt(token) {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(c =>
+        '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+      ).join(''));
+      return JSON.parse(jsonPayload);
+    } catch (err) {
+      console.error('Token inválido:', err);
+      return null;
+    }
+  }
+
   if (!token || !usuarioJSON) {
     alert('Debes iniciar sesión primero.');
     window.location.href = '/login.html';
@@ -25,6 +39,94 @@ document.addEventListener('DOMContentLoaded', () => {
     window.location.href = '/login.html';
     return;
   }
+
+  const payload = parseJwt(token);
+  if (!payload || !payload.id) {
+    alert('Token inválido. Vuelve a iniciar sesión.');
+    sessionStorage.clear();
+    window.location.href = '/login.html';
+    return;
+  }
+
+  // VERIFICACIÓN DE USUARIO VS APERTURA DE CAJA
+  const idUsuarioApertura = localStorage.getItem('id_usuario_apertura');
+  const estadoCaja = localStorage.getItem('estado_caja');
+
+  // DEBUG: Mostrar valores para verificación
+  console.log('ID Usuario Apertura (localStorage):', idUsuarioApertura, 'Tipo:', typeof idUsuarioApertura);
+  console.log('ID Usuario Actual (token):', payload.id, 'Tipo:', typeof payload.id);
+  console.log('¿Coinciden?', parseInt(idUsuarioApertura) === parseInt(payload.id));
+
+  // Convertir ambos a número para comparación correcta
+  const idAperturaNum = parseInt(idUsuarioApertura);
+  const idUsuarioNum = parseInt(payload.id);
+
+  // Si hay una caja abierta y el usuario que la abrió no es el mismo que inició sesión
+  if (estadoCaja === 'abierta' && idUsuarioApertura && idAperturaNum !== idUsuarioNum) {
+    // Obtener información del usuario que abrió la caja
+    fetch(`https://backend-banios.dev-wit.com/api/users/${idUsuarioApertura}`, {
+      headers: {
+        'Authorization': 'Bearer ' + token
+      }
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Error al obtener usuario: ' + response.status);
+      }
+      return response.json();
+    })
+    .then(usuarioApertura => {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Usuario incorrecto',
+        html: `La caja fue abierta por el usuario: <strong>${usuarioApertura.nombre || usuarioApertura.username}</strong>.<br>
+              Debes cerrar la caja con el usuario correspondiente antes de continuar.`,
+        confirmButtonText: 'Entendido',
+        customClass: {
+          title: 'swal-font',
+          htmlContainer: 'swal-font',
+          popup: 'alert-card',
+          confirmButton: 'my-confirm-btn',
+        },
+        buttonsStyling: false,
+        allowOutsideClick: false,
+        allowEscapeKey: false
+      }).then(() => {
+        // Cerrar sesión forzadamente
+        sessionStorage.clear();
+        window.location.href = '/login.html';
+      });
+    })
+    .catch(error => {
+      console.error('Error al obtener información del usuario:', error);
+      // Mostrar mensaje alternativo sin información del usuario
+      Swal.fire({
+        icon: 'warning',
+        title: 'Usuario incorrecto',
+        html: `La caja fue abierta por otro usuario (ID: ${idUsuarioApertura}).<br>
+              Debes cerrar la caja con el usuario correspondiente antes de continuar.`,
+        confirmButtonText: 'Entendido',
+        customClass: {
+          title: 'swal-font',
+          htmlContainer: 'swal-font',
+          popup: 'alert-card',
+          confirmButton: 'my-confirm-btn',
+        },
+        buttonsStyling: false,
+        allowOutsideClick: false,
+        allowEscapeKey: false
+      }).then(() => {
+        sessionStorage.clear();
+        window.location.href = '/login.html';
+      });
+    });
+    
+    // Detener la ejecución del resto del código
+    return;
+  }
+
+  // Si llegamos aquí, la verificación fue exitosa o no hay caja abierta
+  console.log('Verificación de caja: OK');
 });
 
 document.addEventListener("DOMContentLoaded", function () {
