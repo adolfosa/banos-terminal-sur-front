@@ -578,6 +578,7 @@ $(document).ready(function () {
                         localStorage.removeItem('id_aperturas_cierres');
                         localStorage.removeItem('estado_caja');
                         localStorage.removeItem('numero_caja');
+                        localStorage.removeItem('id_usuario_apertura');
 
                         // 🔹 Limpiar datos de la interfaz
                         $('#infoCajaUser').html('');
