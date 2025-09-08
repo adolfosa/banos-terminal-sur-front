@@ -18,26 +18,26 @@ let datosPendientes = null;
 
 let botonActivo = null;
 
-let serviciosDisponibles = {}; 
+let serviciosDisponibles = {};
 
 // Fallbacks si la API no responde o no trae el tipo
-const PRECIO_FALLBACK = { "BAÑO": 500, "DUCHA": 3500 };
+const PRECIO_FALLBACK = { BAÑO: 500, DUCHA: 3500 };
 const getPrecio = (tipo) => {
-const api = Number(serviciosDisponibles?.[tipo]?.precio);
-  return Number.isFinite(api) && api > 0 ? api : (PRECIO_FALLBACK[tipo] ?? 0);
+  const api = Number(serviciosDisponibles?.[tipo]?.precio);
+  return Number.isFinite(api) && api > 0 ? api : PRECIO_FALLBACK[tipo] ?? 0;
 };
 
 async function cargarServicios() {
   try {
-    const token = sessionStorage.getItem('authToken');
-    if (!token) throw new Error('No se encontró token de autenticación');
+    const token = sessionStorage.getItem("authToken");
+    if (!token) throw new Error("No se encontró token de autenticación");
 
-    const res = await fetch('https://backend-banios.dev-wit.com/api/services', {
-      method: 'GET',
+    const res = await fetch("https://backend-banios.dev-wit.com/api/services", {
+      method: "GET",
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
     });
 
     if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
@@ -45,19 +45,20 @@ async function cargarServicios() {
     const data = await res.json();
 
     // Ahora la API devuelve los servicios en data.data
-    if (!Array.isArray(data.data)) throw new Error('Formato inesperado en respuesta de servicios');
+    if (!Array.isArray(data.data))
+      throw new Error("Formato inesperado en respuesta de servicios");
 
     serviciosDisponibles = {};
 
     // Filtrar solo servicios con estado activo
-    const serviciosActivos = data.data.filter(s => s.estado === 'activo');
+    const serviciosActivos = data.data.filter((s) => s.estado === "activo");
 
-    serviciosActivos.forEach(s => {
+    serviciosActivos.forEach((s) => {
       serviciosDisponibles[s.tipo] = {
         id: s.id,
         nombre: s.nombre,
         precio: parseFloat(s.precio),
-        estado: s.estado
+        estado: s.estado,
       };
     });
 
@@ -79,51 +80,61 @@ async function cargarServicios() {
 
     document.querySelectorAll(".generarQR").forEach((btn) => {
       btn.addEventListener("click", (e) => {
-          e.preventDefault();
+        e.preventDefault();
 
-          const estado_caja = localStorage.getItem('estado_caja');
-          const id_aperturas_cierres = localStorage.getItem('id_aperturas_cierres');
+        const estado_caja = localStorage.getItem("estado_caja");
+        const id_aperturas_cierres = localStorage.getItem(
+          "id_aperturas_cierres"
+        );
 
-          if (estado_caja !== 'abierta') {
-              Swal.fire({
-                  icon: 'warning',
-                  title: 'Caja cerrada',
-                  text: 'Por favor, primero debe abrir la caja antes de generar un QR.',
-                  confirmButtonText: 'Entendido'
-              });
-              return;
-          }
+        if (estado_caja !== "abierta") {
+          Swal.fire({
+            icon: "warning",
+            title: "Caja cerrada",
+            text: "Por favor, primero debe abrir la caja antes de generar un QR.",
+            confirmButtonText: "Entendido",
+          });
+          return;
+        }
 
-          const fechaHoraAct = new Date();
-          const horaStr = `${fechaHoraAct.getHours().toString().padStart(2, '0')}:${fechaHoraAct.getMinutes().toString().padStart(2, '0')}:${fechaHoraAct.getSeconds().toString().padStart(2, '0')}`;
-          const fechaStr = fechaHoraAct.toISOString().split("T")[0];
-          const tipoStr = btn.dataset.tipo;
-          const numeroT = generarTokenNumerico();
-          const valor = getPrecio(tipoStr);
+        const fechaHoraAct = new Date();
+        const horaStr = `${fechaHoraAct
+          .getHours()
+          .toString()
+          .padStart(2, "0")}:${fechaHoraAct
+          .getMinutes()
+          .toString()
+          .padStart(2, "0")}:${fechaHoraAct
+          .getSeconds()
+          .toString()
+          .padStart(2, "0")}`;
+        const fechaStr = fechaHoraAct.toISOString().split("T")[0];
+        const tipoStr = btn.dataset.tipo;
+        const numeroT = generarTokenNumerico();
+        const valor = getPrecio(tipoStr);
 
-          datosPendientes = {
-              Codigo: numeroT,
-              hora: horaStr,
-              fecha: fechaStr,
-              tipo: tipoStr,
-              valor: valor,
-              id_caja: id_aperturas_cierres,
-              estado_caja
-          };
+        datosPendientes = {
+          Codigo: numeroT,
+          hora: horaStr,
+          fecha: fechaStr,
+          tipo: tipoStr,
+          valor: valor,
+          id_caja: id_aperturas_cierres,
+          estado_caja,
+        };
 
-          botonActivo = btn;
-          btn.disabled = true;
-          btn.classList.add("disabled");
+        botonActivo = btn;
+        btn.disabled = true;
+        btn.classList.add("disabled");
 
-          document.getElementById("modalPago").style.display = "flex";
+        document.getElementById("modalPago").style.display = "flex";
       });
-  });
+    });
 
     console.log("Servicios activos cargados:", serviciosDisponibles);
-
   } catch (err) {
-    console.error('Error al cargar servicios:', err);
-    alert('Error al cargar servicios disponibles: ' + err.message);
+    console.error("Error al cargar servicios:", err);
+    alert("Error al cargar servicios disponibles: " + err.message);
   }
 }
 
@@ -140,11 +151,75 @@ function cerrarModalPago() {
   datosPendientes = null;
 }
 
+const originalFetch = window.fetch;
+
+window.fetch = async (url, options = {}) => {
+  console.log("🔗 Mock fetch interceptado:", url, options);
+
+  // MOCK externo: Restroom (save, addUser, addLevelUser2)
+  if (
+    url.includes(
+      "https://andenes.terminal-calama.com/TerminalCalama/PHP/Restroom/save.php"
+    ) ||
+    url.includes(
+      "https://andenes.terminal-calama.com/TerminalCalama/PHP/Restroom/addUser.php"
+    ) ||
+    url.includes(
+      "https://andenes.terminal-calama.com/TerminalCalama/PHP/Restroom/addLevelUser2.php"
+    )
+  ) {
+    console.log("✅ MOCK Restroom devuelto");
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, msg: "Mock exitoso" }),
+      text: async () => "Mock exitoso",
+    };
+  }
+
+  // MOCK localhost: /api/payment
+  if (url.includes("/api/payment")) {
+    return {
+      ok: true,
+      status: 200,
+      headers: { get: (h) => "application/json" },
+      json: async () => ({
+        data: {
+          successful: true,
+          responseCode: 0,
+          responseMessage: "Transacción aprobada (mock)",
+        },
+      }),
+    };
+  }
+
+  // MOCK localhost: /api/caja/movimientos
+  if (url.includes("/api/caja/movimientos")) {
+    return {
+      ok: true,
+      headers: { get: (h) => "application/json" },
+      json: async () => ({
+        success: true,
+        id: Date.now(),
+        msg: "Movimiento guardado (mock)",
+      }),
+    };
+  }
+
+  // Dejar /api/print real
+  if (url.includes("/api/print")) {
+    return originalFetch(url, options);
+  }
+
+  // Fallback: fetch real
+  return originalFetch(url, options);
+};
+
 async function continuarConPago(metodoPago) {
   if (!datosPendientes) return;
 
   const { Codigo, hora, fecha, tipo } = datosPendientes;
-  const estado_caja = localStorage.getItem('estado_caja');
+  const estado_caja = localStorage.getItem("estado_caja");
   const precioFinal = getPrecio(tipo);
   const datos = { Codigo, hora, fecha, tipo, valor: precioFinal };
 
@@ -166,15 +241,21 @@ async function continuarConPago(metodoPago) {
       });
 
       const contentType = res.headers.get("content-type");
-      const result = contentType?.includes("application/json") ? await res.json() : null;
+      const result = contentType?.includes("application/json")
+        ? await res.json()
+        : null;
 
-      if (!result || !result.data?.successful || result.data.responseCode !== 0) {
-        const msg = result?.data?.responseMessage || "Pago no aprobado por el POS";
+      if (
+        !result ||
+        !result.data?.successful ||
+        result.data.responseCode !== 0
+      ) {
+        const msg =
+          result?.data?.responseMessage || "Pago no aprobado por el POS";
         throw new Error(`Transacción fallida: ${msg}`);
       }
 
       console.log("✅ Transacción aprobada:", result);
-
     } catch (err) {
       console.error("❌ Error durante el pago:", err);
       Swal.fire({
@@ -204,12 +285,12 @@ async function continuarConPago(metodoPago) {
   showSpinner();
 
   // Obtener ID del usuario desde el token
-  const token = sessionStorage.getItem('authToken');
+  const token = sessionStorage.getItem("authToken");
   const jwtPayload = parseJwt(token);
 
   if (!jwtPayload?.id) {
-    alert('Sesión expirada. Inicia sesión nuevamente.');
-    window.location.href = '/login.html';
+    alert("Sesión expirada. Inicia sesión nuevamente.");
+    window.location.href = "/login.html";
     return;
   }
 
@@ -217,9 +298,9 @@ async function continuarConPago(metodoPago) {
 
   await callApi(datos);
   // Registrar movimiento en la base de datos
-  await fetch('http://localhost:3000/api/caja/movimientos', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+  await fetch("http://localhost:3000/api/caja/movimientos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       codigo: Codigo,
       fecha,
@@ -228,35 +309,42 @@ async function continuarConPago(metodoPago) {
       valor: precioFinal,
       metodoPago,
       estado_caja,
-      id_usuario
-    })
+      id_usuario,
+    }),
   });
 
   // Generar y enviar voucher con QR
   QR.makeCode(Codigo);
-  await new Promise(resolve => setTimeout(resolve, 500));
+  await new Promise((resolve) => setTimeout(resolve, 500));
 
   const qrCanvas = contenedorQR.querySelector("canvas");
   const qrBase64 = qrCanvas
     ? qrCanvas.toDataURL("image/png").replace(/^data:image\/png;base64,/, "")
     : "";
 
-  const printPayload = { Codigo, hora, fecha, tipo, valor: precioFinal, qrBase64 };
-  
+  const printPayload = {
+    Codigo,
+    hora,
+    fecha,
+    tipo,
+    valor: precioFinal,
+    qrBase64,
+  };
+
   const estado = document.createElement("p");
   contenedorQR.appendChild(estado);
 
   try {
-    const res = await fetch('http://localhost:3000/api/print', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(printPayload)
+    const res = await fetch("http://localhost:3000/api/print", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(printPayload),
     });
 
-    const contentType = res.headers.get('content-type');
-    if (contentType?.includes('application/json')) {
+    const contentType = res.headers.get("content-type");
+    if (contentType?.includes("application/json")) {
       const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'Error inesperado');
+      if (!data.success) throw new Error(data.error || "Error inesperado");
     } else {
       const text = await res.text();
       throw new Error(`Respuesta no JSON: ${text}`);
@@ -282,14 +370,17 @@ async function continuarConPago(metodoPago) {
   // Función local para decodificar el JWT
   function parseJwt(token) {
     try {
-      const base64Url = token.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(atob(base64).split('').map(c =>
-        '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
-      ).join(''));
+      const base64Url = token.split(".")[1];
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split("")
+          .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+          .join("")
+      );
       return JSON.parse(jsonPayload);
     } catch (err) {
-      console.error('Token inválido:', err);
+      console.error("Token inválido:", err);
       return null;
     }
   }
@@ -354,10 +445,15 @@ function printQR() {
     alert("No hay código QR generado para imprimir.");
     return;
   }
-  
+
   const precio =
-    (serviciosDisponibles?.[tipoSeleccionado]?.precio ?? datosPendientes?.valor ?? null) != null
-      ? `$${Number((serviciosDisponibles?.[tipoSeleccionado]?.precio ?? datosPendientes?.valor)).toLocaleString("es-CL")}`
+    (serviciosDisponibles?.[tipoSeleccionado]?.precio ??
+      datosPendientes?.valor ??
+      null) != null
+      ? `$${Number(
+          serviciosDisponibles?.[tipoSeleccionado]?.precio ??
+            datosPendientes?.valor
+        ).toLocaleString("es-CL")}`
       : "No definido";
 
   ventanaImpr.document.write(`
