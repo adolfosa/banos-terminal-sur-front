@@ -65,7 +65,17 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       // Mostrar modal para recuperar contraseña
       const modal = document.getElementById('modalRecuperar');
-      if (modal) modal.style.display = 'flex';
+      if (modal) {
+        modal.style.display = 'flex';
+        // Asegurar que el modal tenga un z-index alto
+        modal.style.zIndex = '1000';
+        
+        // Ajustar el z-index del teclado virtual para que aparezca sobre el modal
+        const tecladoContainer = document.getElementById('tecladoContainer');
+        if (tecladoContainer && tecladoContainer.style.display !== 'none') {
+          tecladoContainer.style.zIndex = '1001'; // Mayor que el modal
+        }
+      }
     });
   }
 
@@ -126,7 +136,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Cerrar modal al hacer clic fuera del contenido
   window.addEventListener('click', function(event) {
     const modal = document.getElementById('modalRecuperar');
-    if (event.target === modal && modal) {
+    const tecladoContainer = document.getElementById('tecladoContainer');
+    
+    // Solo cerrar si se hace clic directamente en el modal (fondo) y no en el teclado
+    if (event.target === modal && modal && 
+        (!tecladoContainer || !tecladoContainer.contains(event.target))) {
       modal.style.display = 'none';
     }
   });

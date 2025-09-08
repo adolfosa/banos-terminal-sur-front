@@ -9,6 +9,21 @@
     <!-- simple keyboard -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/simple-keyboard/3.8.67/css/index.min.css">    
     <script src="/js/login.js" defer></script>  
+    <style>
+      /* Asegurar que el teclado aparezca sobre el modal */
+      #tecladoContainer {
+        z-index: 1001 !important; /* Mayor que el modal */
+      }
+      
+      .modal {
+        z-index: 1000; /* Menor que el teclado */
+      }
+      
+      .modal-content {
+        z-index: 1002; /* Mayor que el teclado */
+        position: relative;
+      }
+    </style>
   </head>
   <body>
     <header>
@@ -60,7 +75,7 @@
     <button onclick="apagarSistema()" class="btn btn-danger" style="position:fixed; bottom:10px; left:10px; z-index:1000;">Apagar</button>  
     
     <!-- Contenedor del teclado -->
-    <div id="tecladoContainer" style="display: none; position: fixed; bottom: 0; width: 100%; z-index: 9999; background: #fff; box-shadow: 0 -2px 10px rgba(0,0,0,0.3);">
+    <div id="tecladoContainer" style="display: none; position: fixed; bottom: 0; width: 100%; z-index: 1001; background: #fff; box-shadow: 0 -2px 10px rgba(0,0,0,0.3);">
       <div class="simple-keyboard"></div>
     </div>    
 
