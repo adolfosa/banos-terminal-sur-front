@@ -248,186 +248,189 @@ $(document).ready(function () {
   // Botón para actualizar la lista
   $('#btnActualizar').on('click', cargarCaja);
 
- $('#formInicioCaja').on('submit', function (e) {
-    e.preventDefault();
+  $('#formInicioCaja').on('submit', function (e) {
+      e.preventDefault();
 
-    const monto = $('#monto_inicial_modal').val();
-    const observaciones = $('#observaciones_modal').val();
+      const monto = $('#monto_inicial_modal').val();
+      const observaciones = $('#observaciones_modal').val();
 
-    const token = sessionStorage.getItem('authToken');
-    const usuarioJSON = sessionStorage.getItem('usuario');
+      const token = sessionStorage.getItem('authToken');
+      const usuarioJSON = sessionStorage.getItem('usuario');
 
-    if (!token || !usuarioJSON) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Sesión inválida',
-            text: 'Sesión no válida. Vuelve a iniciar sesión.'
-        }).then(() => {
-            sessionStorage.clear();
-            window.location.href = '/login.html';
-        });
-        return;
-    }
+      if (!token || !usuarioJSON) {
+          Swal.fire({
+              icon: 'warning',
+              title: 'Sesión inválida',
+              text: 'Sesión no válida. Vuelve a iniciar sesión.'
+          }).then(() => {
+              sessionStorage.clear();
+              window.location.href = '/login.html';
+          });
+          return;
+      }
 
-    function parseJwt(token) {
+      function parseJwt(token) {
+          try {
+              const payload = token.split('.')[1];
+              return JSON.parse(atob(payload));
+          } catch (err) {
+              return null;
+          }
+      }
+
+      const payload = parseJwt(token);
+      if (!payload || !payload.id) {
+          Swal.fire({
+              icon: 'error',
+              title: 'Token inválido',
+              text: 'Token inválido. Vuelve a iniciar sesión.'
+          }).then(() => {
+              sessionStorage.clear();
+              window.location.href = '/login.html';
+          });
+          return;
+      }
+
+      const id_usuario_apertura = payload.id;
+
+      if (!monto || isNaN(monto) || parseFloat(monto) <= 0) {
+          Swal.fire({
+              icon: 'error',
+              title: 'Monto inválido',
+              text: 'El monto inicial debe ser un número mayor a 0.'
+          });
+          return;
+      }
+
+      // Función para obtener el número de caja desde el backend local
+      function obtenerNumeroCaja() {
+          return new Promise((resolve, reject) => {
+              $.ajax({
+                  url: 'http://localhost:3000/api/numero-caja',
+                  type: 'GET',
+                  success: function(data) {
+                      if (data && data.numero_caja !== undefined) {
+                          resolve(data.numero_caja);
+                      } else {
+                          reject('Número de caja no disponible');
+                      }
+                  },
+                  error: function(error) {
+                      reject('Error al obtener número de caja: ' + error.statusText);
+                  }
+              });
+          });
+      }
+
+      // Función principal para abrir la caja
+      async function abrirCaja() {
         try {
-            const payload = token.split('.')[1];
-            return JSON.parse(atob(payload));
-        } catch (err) {
-            return null;
-        }
-    }
+            // Obtener número de caja
+            const numero_caja = await obtenerNumeroCaja();
+            
+            // Obtener fecha y hora actual
+            const now = new Date();
+            const fecha_apertura = now.toISOString().split('T')[0];
+            const hora_apertura = now.toTimeString().split(' ')[0];
 
-    const payload = parseJwt(token);
-    if (!payload || !payload.id) {
-        Swal.fire({
-            icon: 'error',
-            title: 'Token inválido',
-            text: 'Token inválido. Vuelve a iniciar sesión.'
-        }).then(() => {
-            sessionStorage.clear();
-            window.location.href = '/login.html';
-        });
-        return;
-    }
-
-    const id_usuario_apertura = payload.id;
-
-    if (!monto || isNaN(monto) || parseFloat(monto) <= 0) {
-        Swal.fire({
-            icon: 'error',
-            title: 'Monto inválido',
-            text: 'El monto inicial debe ser un número mayor a 0.'
-        });
-        return;
-    }
-
-    // Función para obtener el número de caja desde el backend local
-    function obtenerNumeroCaja() {
-        return new Promise((resolve, reject) => {
+            // Hacer la petición para abrir la caja
             $.ajax({
-                url: 'http://localhost:3000/api/numero-caja',
-                type: 'GET',
-                success: function(data) {
-                    if (data && data.numero_caja !== undefined) {
-                        resolve(data.numero_caja);
+                url: 'http://localhost:3000/api/caja/abrir',
+                type: 'POST',
+                data: {
+                    numero_caja: numero_caja,
+                    id_usuario_apertura: id_usuario_apertura,
+                    fecha_apertura: fecha_apertura,
+                    hora_apertura: hora_apertura,
+                    monto_inicial: monto,
+                    observaciones: observaciones,
+                    estado: 'abierta'
+                },
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                },
+                success: function(res) {
+                    if (res.success) {
+                        // Almacenar los datos en localStorage
+                        localStorage.setItem('id_aperturas_cierres', res.id);
+                        localStorage.setItem('estado_caja', 'abierta');
+                        localStorage.setItem('numero_caja', res.numero_caja);
+                        localStorage.setItem('id_usuario_apertura', id_usuario_apertura); // ← AQUÍ SE AGREGA
+                        
+                        $('#modalInicio').modal('hide');
+                        
+                        Swal.fire({
+                            icon: 'success',
+                            title: '¡Caja abierta!',
+                            text: 'Caja abierta correctamente',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                        
+                        $('#btnAbrirCaja').prop('disabled', true);
+                        $('#btnCerrarCaja').prop('disabled', false);
+                        cargarCaja(); 
                     } else {
-                        reject('Número de caja no disponible');
+                        if (res.error === 'Ya existe una caja abierta para este número.') {
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Caja ya abierta',
+                                text: 'La caja ya está abierta'
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: res.error
+                            });
+                        }
                     }
                 },
                 error: function(error) {
-                    reject('Error al obtener número de caja: ' + error.statusText);
+                    console.error('Error en la petición:', error);
+                    if (error.status === 400) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Datos incompletos',
+                            text: 'Datos incompletos: ' + error.responseJSON.error
+                        });
+                    } else if (error.status === 401) {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Sesión expirada',
+                            text: 'Sesión expirada. Por favor, inicie sesión nuevamente.'
+                        }).then(() => {
+                            sessionStorage.clear();
+                            window.location.href = '/login.html';
+                        });
+                    } else if (error.status === 500) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error del servidor',
+                            text: 'Error del servidor: ' + error.responseJSON.error
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error de conexión',
+                            text: 'Error al conectar con el servidor'
+                        });
+                    }
                 }
             });
-        });
+
+        } catch (error) {
+            console.error('Error:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error inesperado',
+                text: error.message || 'Ocurrió un error inesperado'
+            });
+        }
     }
 
-    // Función principal para abrir la caja
-    async function abrirCaja() {
-      try {
-          // Obtener número de caja
-          const numero_caja = await obtenerNumeroCaja();
-          
-          // Obtener fecha y hora actual
-          const now = new Date();
-          const fecha_apertura = now.toISOString().split('T')[0];
-          const hora_apertura = now.toTimeString().split(' ')[0];
-
-          // Hacer la petición para abrir la caja
-          $.ajax({
-              url: 'http://localhost:3000/api/caja/abrir',
-              type: 'POST',
-              data: {
-                  numero_caja: numero_caja,
-                  id_usuario_apertura: id_usuario_apertura,
-                  fecha_apertura: fecha_apertura,
-                  hora_apertura: hora_apertura,
-                  monto_inicial: monto,
-                  observaciones: observaciones,
-                  estado: 'abierta'
-              },
-              headers: {
-                  'Authorization': 'Bearer ' + token
-              },
-              success: function(res) {
-                  if (res.success) {
-                      localStorage.setItem('id_aperturas_cierres', res.id);
-                      localStorage.setItem('estado_caja', 'abierta');
-                      localStorage.setItem('numero_caja', res.numero_caja); 
-                      $('#modalInicio').modal('hide');
-                      
-                      Swal.fire({
-                          icon: 'success',
-                          title: '¡Caja abierta!',
-                          text: 'Caja abierta correctamente',
-                          timer: 2000,
-                          showConfirmButton: false
-                      });
-                      
-                      $('#btnAbrirCaja').prop('disabled', true);
-                      $('#btnCerrarCaja').prop('disabled', false);
-                      cargarCaja(); 
-                  } else {
-                      if (res.error === 'Ya existe una caja abierta para este número.') {
-                          Swal.fire({
-                              icon: 'warning',
-                              title: 'Caja ya abierta',
-                              text: 'La caja ya está abierta'
-                          });
-                      } else {
-                          Swal.fire({
-                              icon: 'error',
-                              title: 'Error',
-                              text: res.error
-                          });
-                      }
-                  }
-              },
-              error: function(error) {
-                  console.error('Error en la petición:', error);
-                  if (error.status === 400) {
-                      Swal.fire({
-                          icon: 'error',
-                          title: 'Datos incompletos',
-                          text: 'Datos incompletos: ' + error.responseJSON.error
-                      });
-                  } else if (error.status === 401) {
-                      Swal.fire({
-                          icon: 'warning',
-                          title: 'Sesión expirada',
-                          text: 'Sesión expirada. Por favor, inicie sesión nuevamente.'
-                      }).then(() => {
-                          sessionStorage.clear();
-                          window.location.href = '/login.html';
-                      });
-                  } else if (error.status === 500) {
-                      Swal.fire({
-                          icon: 'error',
-                          title: 'Error del servidor',
-                          text: 'Error del servidor: ' + error.responseJSON.error
-                      });
-                  } else {
-                      Swal.fire({
-                          icon: 'error',
-                          title: 'Error de conexión',
-                          text: 'Error al conectar con el servidor'
-                      });
-                  }
-              }
-          });
-
-      } catch (error) {
-          console.error('Error:', error);
-          Swal.fire({
-              icon: 'error',
-              title: 'Error inesperado',
-              text: error.message || 'Ocurrió un error inesperado'
-          });
-      }
-  }
-
-  // Ejecutar la función principal
-  abrirCaja();
+    // Llamar a la función para abrir la caja
+    abrirCaja();
   });
 
   $('#btnCerrarCaja').on('click', function () {
