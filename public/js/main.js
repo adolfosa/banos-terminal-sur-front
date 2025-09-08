@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
           title: 'swal-font',
           htmlContainer: 'swal-font',
           popup: 'alert-card',
-          confirmButton: 'my-confirm-btn',
+          confirmButton: 'swal-confirm-btn', // Cambiado a una clase más específica
         },
         buttonsStyling: false,
         allowOutsideClick: false,
@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
           title: 'swal-font',
           htmlContainer: 'swal-font',
           popup: 'alert-card',
-          confirmButton: 'my-confirm-btn',
+          confirmButton: 'swal-confirm-btn', // Cambiado a una clase más específica
         },
         buttonsStyling: false,
         allowOutsideClick: false,
