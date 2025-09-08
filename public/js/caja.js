@@ -896,30 +896,29 @@ $(document).ready(function () {
       const usuario = usuarioRaw ? JSON.parse(usuarioRaw) : null;
       const nombre_cajero = usuario ? usuario.username : "Cajero";
 
-      $.ajax({
-        url: "http://localhost:3000/api/caja/retiros",
-        type: "POST",
-        headers: {
-          Authorization: "Bearer " + token,
-          "Content-Type": "application/json",
-        },
-        data: JSON.stringify({
-          monto: monto,
-          motivo: motivo,
-          id_usuario: idUsuarioAdmin, // ID del admin que autoriza
-          nombre_cajero: nombre_cajero, // Nombre del cajero que realiza la operación
-        }),
-        success: function (response) {
-          if (response.success) {
-            resolve(response);
-          } else {
-            reject(new Error(response.message || "Error en el retiro"));
-          }
-        },
-        error: function (xhr, status, error) {
-          reject(new Error("Error del servidor: " + error));
-        },
+      console.log("🔗 MOCK realizarRetiro llamado:", {
+        monto,
+        motivo,
+        idUsuarioAdmin,
+        nombre_cajero,
+        token,
       });
+
+      // Simular delay de la operación
+      setTimeout(() => {
+        // Siempre éxito
+        resolve({
+          success: true,
+          message: `Retiro mock de $${monto} realizado correctamente por ${nombre_cajero}`,
+          data: {
+            monto,
+            motivo,
+            id_usuario: idUsuarioAdmin,
+            nombre_cajero,
+            fecha: new Date().toISOString(),
+          },
+        });
+      }, 500); // simula tiempo de respuesta del servidor
     });
   }
 
