@@ -251,6 +251,21 @@ $(document).ready(function () {
   $('#formInicioCaja').on('submit', function (e) {
       e.preventDefault();
 
+      // Obtener usuario desde sessionStorage
+      const usuarioRaw = sessionStorage.getItem('usuario');
+      const usuario = usuarioRaw ? JSON.parse(usuarioRaw) : null;
+      
+      // Verificar si el usuario tiene rol de cajero
+      if (!usuario || usuario.role.toLowerCase() !== 'cajero') {
+          Swal.fire({
+              icon: 'error',
+              title: 'Permiso denegado',
+              text: 'Solo los usuarios con rol "Cajero" pueden abrir caja.',
+              confirmButtonText: 'Entendido'
+          });
+          return; // Detener la ejecución
+      }
+
       const monto = $('#monto_inicial_modal').val();
       const observaciones = $('#observaciones_modal').val();
 
