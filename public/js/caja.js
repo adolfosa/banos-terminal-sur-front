@@ -545,7 +545,7 @@ $(document).ready(function () {
     }
 
     const token = sessionStorage.getItem('authToken');
-    const numero_caja = await obtenerNumeroCaja();
+    const numero_caja = localStorage.getItem('numero_caja');
 
     if (!token) {
       Swal.fire({
@@ -945,6 +945,7 @@ $(document).ready(function () {
   function realizarRetiro(monto, motivo, idUsuarioAdmin) {
     return new Promise(async (resolve, reject) => {
       const token = sessionStorage.getItem('authToken');
+      const numero_caja = localStorage.getItem('numero_caja');
 
       // Obtener el nombre del cajero desde sessionStorage
       const usuarioRaw = sessionStorage.getItem('usuario');
@@ -954,7 +955,7 @@ $(document).ready(function () {
       try {
         // 1. Registrar el retiro
         const response = await $.ajax({
-          url: 'http://localhost:3000/api/caja/retiros',
+          url: 'http://localhost:4000/api/aperturas-cierres/retiro',
           type: 'POST',
           headers: {
             'Authorization': 'Bearer ' + token,
@@ -964,7 +965,8 @@ $(document).ready(function () {
             monto: monto,
             motivo: motivo,
             id_usuario: idUsuarioAdmin,
-            nombre_cajero: nombre_cajero
+            nombre_cajero: nombre_cajero,
+            numero_caja: numero_caja,
           })
         });
 
@@ -992,24 +994,97 @@ $(document).ready(function () {
   // Función para imprimir una copia del retiro
   async function imprimirCopiaRetiro(datosImpresion) {
     try {
-      const token = sessionStorage.getItem('authToken');
+      // 1. Crear el PDF en el frontend
+      const { PDFDocument, StandardFonts } = PDFLib;
+      const pdfDoc = await PDFDocument.create();
+
+      // --- Datos base ---
+      const fechaObj = new Date(datosImpresion.fecha);
+      const dia = String(fechaObj.getDate()).padStart(2, "0");
+      const mes = String(fechaObj.getMonth() + 1).padStart(2, "0");
+      const anio = String(fechaObj.getFullYear());
+      const fechaFormateada = `${dia}-${mes}-${anio}`;
+
+      // --- Contenido ---
+      const detalle = [
+        "COMPROBANTE DE RETIRO",
+        datosImpresion.motivo ? `MOTIVO: ${datosImpresion.motivo}` : "DE EFECTIVO",
+        "---------------------------------------------------",
+        `Código: ${datosImpresion.codigo}`,
+        `Fecha:  ${fechaFormateada}`,
+        `Hora:   ${datosImpresion.hora}`,
+        `Caja:   ${datosImpresion.nombre_caja}`,
+        `Cajero: ${datosImpresion.nombre_cajero}`,
+        `Autorizado por: ${datosImpresion.nombre_usuario}`,
+        "---------------------------------------------------",
+        "MONTO RETIRADO:",
+        `$${parseFloat(datosImpresion.monto).toLocaleString('es-CL')}`,
+        "---------------------------------------------------",
+      ];
+
+      const footer = [
+        " ",
+        "FIRMA AUTORIZADA:",
+        " ",
+        "_________________________",
+      ];
+
+      // --- Crear página ---
+      const lineHeight = 15;
+      const altura = 300; // altura base (puedes calcular dinámicamente como antes)
+      const page = pdfDoc.addPage([210, altura]);
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+      let y = altura - 30;
+
+      detalle.forEach((line) => {
+        const isTitle = line === "COMPROBANTE DE RETIRO" || line.startsWith("MOTIVO:");
+        const isMonto = line.includes("MONTO RETIRADO") || line.includes("$");
+        const isSeparator = line.includes("---");
+
+        const currentFont = isTitle || isMonto ? boldFont : font;
+        const currentSize = isMonto ? 13 : isTitle ? 13 : 12;
+
+        if (isSeparator) {
+          page.drawText(line, { x: 15, y, size: 12, font });
+        } else {
+          const textWidth = currentFont.widthOfTextAtSize(line, currentSize);
+          const centeredX = (210 - textWidth) / 2;
+          page.drawText(line, { x: centeredX, y, size: currentSize, font: currentFont });
+        }
+        y -= lineHeight;
+      });
+
+      y -= 20;
+      footer.forEach((line) => {
+        page.drawText(line, { x: 30, y, size: 11, font });
+        y -= lineHeight;
+      });
+
+      // 2. Guardar PDF en base64
+      const pdfBytes = await pdfDoc.save();
+      const pdfBase64 = btoa(String.fromCharCode(...pdfBytes));
+
+      // 3. Enviar a la API de impresión
       const response = await $.ajax({
-        url: 'http://localhost:3000/api/caja/imprimir-retiro',
-        type: 'POST',
-        headers: {
-          'Authorization': 'Bearer ' + token,
-          'Content-Type': 'application/json'
-        },
-        data: JSON.stringify(datosImpresion)
+        url: "http://localhost:3000/api/imprimir",
+        type: "POST",
+        contentType: "application/json",
+        data: JSON.stringify({
+          pdfData: pdfBase64,
+          printer: "POS58",
+          filename: `retiro-${datosImpresion.codigo}-${Date.now()}.pdf`
+        })
       });
 
       if (!response.success) {
-        throw new Error(response.message || 'Error al imprimir');
+        throw new Error(response.message || "Error al imprimir");
       }
 
       return response;
     } catch (error) {
-      console.error('Error al imprimir comprobante:', error);
+      console.error("Error al imprimir comprobante:", error);
       throw error;
     }
   }
