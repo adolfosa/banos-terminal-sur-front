@@ -528,6 +528,82 @@ $(document).ready(function () {
   });
 
   // Función para realizar el cierre de caja después de la autenticación
+  async function imprimirCopiaCierre(datosImpresion) {
+    try {
+      const pdfDoc = await PDFDocument.create();
+      const page = pdfDoc.addPage([210, 780]); // Aumentar altura para incluir ambas líneas
+
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      const fontSize = 12;
+      const x = 20;
+      let y = 750; // Ajustar posición inicial
+
+      const lines = [
+        "CIERRE DE CAJA",
+        "-------------------------",
+        `Caja         : ${datosImpresion.nombre_caja}`, // ← Cambiado: usar nombre_caja en lugar de numero_caja
+        `Cajero       : ${datosImpresion.nombre_cajero || 'Cajero'}`,
+        `Cerrado por  : ${datosImpresion.nombre_usuario_cierre}`,
+        `Fecha        : ${datosImpresion.fecha_cierre}`,
+        `Hora         : ${datosImpresion.hora_cierre}`,
+        "",
+        `Monto Inicial     : $${datosImpresion.monto_inicial}`,
+        `Total Efectivo    : $${datosImpresion.total_efectivo}`,
+        `Total Tarjeta     : $${datosImpresion.total_tarjeta}`,
+        `Total Retirado    : $${datosImpresion.total_retiros}`,
+        "-------------------------",
+        `TOTAL VENTAS      : $${parseFloat(Number(datosImpresion.total_efectivo) + Number(datosImpresion.total_tarjeta)).toLocaleString('es-CL')}`,
+        "-------------------------",
+        `BALANCE FINAL     : $${datosImpresion.balance_final}`,
+        "-------------------------",
+        "",
+        ".",
+        "",
+        "",
+      ];
+
+      lines.forEach((line) => {
+        // Destacar títulos y totales importantes
+        const isTitle = line.includes("CIERRE DE CAJA");
+        const isTotal = line.includes("TOTAL VENTAS") || line.includes("BALANCE FINAL");
+
+        const currentFont = isTitle || isTotal ? boldFont : font;
+        const currentSize = isTitle ? fontSize + 1 : isTotal ? fontSize + 1 : fontSize;
+
+        page.drawText(line, { x, y, size: currentSize, font: currentFont });
+        y -= 20;
+      });
+
+      const pdfBytes = await pdfDoc.save();
+      const filePath = path.join(os.tmpdir(), `cierre-caja-${Date.now()}.pdf`);
+      fs.writeFileSync(filePath, pdfBytes);
+      const pdfBase64 = btoa(String.fromCharCode(...pdfBytes));
+
+      // 3. Enviar a la API de impresión
+      const response = await $.ajax({
+        url: "http://localhost:3000/api/imprimir",
+        type: "POST",
+        contentType: "application/json",
+        data: JSON.stringify({
+          pdfData: pdfBase64,
+          printer: "POS58",
+          filename: `retiro-${datosImpresion.codigo}-${Date.now()}.pdf`
+        })
+      });
+
+      if (!response.success) {
+        throw new Error(response.message || "Error al imprimir");
+      }
+
+      return response;
+    }
+
+    catch (error) {
+      console.log("error al imprimir cierre: " + error);
+    }
+  }
+
   async function realizarCierreCaja(idUsuarioCierre) {
     const estadoCaja = localStorage.getItem('estado_caja');
     const idSesion = localStorage.getItem('id_aperturas_cierres');
@@ -594,39 +670,11 @@ $(document).ready(function () {
           headers: {
             'Authorization': 'Bearer ' + token
           },
-          success: function (data) {
+          success: async function (data) {
             if (data.success) {
               const payload = data.data;
-              $.ajax({
-                url: 'http://localhost:3000/api/caja/imprimir-cierre',
-                type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({
-                  monto_inicial: payload.monto_inicial,
-                  total_efectivo: payload.total_efectivo,
-                  total_tarjeta: payload.total_tarjeta,
-                  total_retiros: payload.total_retiros,
-                  balance_final: payload.balance_final,
-                  fecha_cierre: payload.fecha_cierre,
-                  hora_cierre: payload.hora_cierre,
-                  numero_caja: numero_caja,
-                  nombre_caja: payload.nombre_caja,
-                  nombre_usuario_cierre: payload.nombre_usuario_cierre,
-                  nombre_cajero: payload.nombre_cajero
-                }),
-                success: function () {
-                  // opcional: feedback del ticket
-                  console.log('Ticket enviado a impresión');
-                },
-                error: function (xhr, status, error) {
-                  console.error('Error al imprimir:', error);
-                  Swal.fire({
-                    icon: 'error',
-                    title: 'Error al imprimir',
-                    text: 'No se pudo imprimir el comprobante.'
-                  });
-                }
-              });
+              await imprimirCopiaCierre(payload.datosImpresion);
+
 
               // 🔹 Limpiar estado de la caja
               localStorage.removeItem('id_aperturas_cierres');
