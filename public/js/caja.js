@@ -904,39 +904,94 @@ $(document).ready(function () {
 
   // Función para realizar el retiro
   function realizarRetiro(monto, motivo, idUsuarioAdmin) {
-    return new Promise((resolve, reject) => {
-      const token = sessionStorage.getItem('authToken');
-      
-      // Obtener el nombre del cajero desde sessionStorage
-      const usuarioRaw = sessionStorage.getItem('usuario');
-      const usuario = usuarioRaw ? JSON.parse(usuarioRaw) : null;
-      const nombre_cajero = usuario ? usuario.username : 'Cajero';
-      
-      $.ajax({
-        url: 'http://localhost:3000/api/caja/retiros',
-        type: 'POST',
-        headers: {
-          'Authorization': 'Bearer ' + token,
-          'Content-Type': 'application/json'
-        },
-        data: JSON.stringify({
-          monto: monto,
-          motivo: motivo,
-          id_usuario: idUsuarioAdmin,  // ID del admin que autoriza
-          nombre_cajero: nombre_cajero  // Nombre del cajero que realiza la operación
-        }),
-        success: function(response) {
-          if (response.success) {
-            resolve(response);
-          } else {
-            reject(new Error(response.message || 'Error en el retiro'));
+      return new Promise(async (resolve, reject) => {
+          const token = sessionStorage.getItem('authToken');
+          
+          // Obtener el nombre del cajero desde sessionStorage
+          const usuarioRaw = sessionStorage.getItem('usuario');
+          const usuario = usuarioRaw ? JSON.parse(usuarioRaw) : null;
+          const nombre_cajero = usuario ? usuario.username : 'Cajero';
+          
+          try {
+              // 1. Registrar el retiro
+              const response = await $.ajax({
+                  url: 'http://localhost:3000/api/caja/retiros',
+                  type: 'POST',
+                  headers: {
+                      'Authorization': 'Bearer ' + token,
+                      'Content-Type': 'application/json'
+                  },
+                  data: JSON.stringify({
+                      monto: monto,
+                      motivo: motivo,
+                      id_usuario: idUsuarioAdmin,
+                      nombre_cajero: nombre_cajero
+                  })
+              });
+
+              if (!response.success) {
+                  throw new Error(response.message || 'Error en el retiro');
+              }
+
+              // 2. Imprimir primera copia
+              await imprimirCopiaRetiro(response.datosImpresion);
+
+              // 3. Mostrar alerta para cortar el primer comprobante
+              await mostrarAlertaCorte();
+
+              // 4. Imprimir segunda copia
+              await imprimirCopiaRetiro(response.datosImpresion);
+
+              resolve(response);
+
+          } catch (error) {
+              reject(new Error('Error del servidor: ' + error));
           }
-        },
-        error: function(xhr, status, error) {
-          reject(new Error('Error del servidor: ' + error));
-        }
       });
-    });
+  }
+
+  // Función para imprimir una copia del retiro
+  async function imprimirCopiaRetiro(datosImpresion) {
+      try {
+          const token = sessionStorage.getItem('authToken');
+          const response = await $.ajax({
+              url: 'http://localhost:3000/api/caja/imprimir-retiro',
+              type: 'POST',
+              headers: {
+                  'Authorization': 'Bearer ' + token,
+                  'Content-Type': 'application/json'
+              },
+              data: JSON.stringify(datosImpresion)
+          });
+
+          if (!response.success) {
+              throw new Error(response.message || 'Error al imprimir');
+          }
+
+          return response;
+      } catch (error) {
+          console.error('Error al imprimir comprobante:', error);
+          throw error;
+      }
+  }
+
+  // Función para mostrar el alerta de corte
+  function mostrarAlertaCorte() {
+      return new Promise((resolve) => {
+          Swal.fire({
+              title: 'Corte el primer comprobante',
+              text: 'Por favor, corte el primer comprobante antes de continuar',
+              icon: 'info',
+              showCancelButton: false,
+              confirmButtonText: 'Continuar',
+              allowOutsideClick: false,
+              allowEscapeKey: false,
+          }).then((result) => {
+              if (result.isConfirmed) {
+                  resolve();
+              }
+          });
+      });
   }
 
   // Mostrar información del autorizador cuando se abre el modal
