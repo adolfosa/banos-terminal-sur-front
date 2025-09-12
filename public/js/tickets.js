@@ -127,6 +127,143 @@ async function cargarServicios() {
   }
 }
 
+async function imprimirTicket({ Codigo, hora, fecha, tipo, valor, qrBase64 }) {
+  try {
+    console.log("🟢 Iniciando proceso de impresión de ticket");
+    console.log("📋 Datos recibidos:", { Codigo, hora, fecha, tipo, valor });
+
+    if (!Codigo || !tipo) throw new Error("Campos requeridos faltantes");
+
+    // --- Obtener número de boleta real desde la API ---
+    let numeroBoleta = "001";
+    try {
+      const response = await fetch('https://backend-banios.dev-wit.com/api/boletas/enviar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre: tipo, precio: valor || 0 })
+      });
+
+      const responseData = await response.json();
+      if (response.ok) {
+        numeroBoleta = responseData.folio || responseData.numeroBoleta || responseData.id || responseData.numero || "001";
+      } else {
+        console.warn("⚠️ API devolvió error:", responseData.error || "desconocido");
+        numeroBoleta = responseData.folio || responseData.numero || numeroBoleta;
+      }
+    } catch (err) {
+      console.warn("❌ Error al conectar con API de boletas:", err.message);
+    }
+
+    // --- Crear documento PDF ---
+    const { PDFDocument, StandardFonts } = PDFLib;
+    const pdfDoc = await PDFDocument.create();
+
+    // Formatear fecha DD-MM-YYYY
+    const fechaObj = new Date(fecha);
+    const dia = String(fechaObj.getDate()).padStart(2, "0");
+    const mes = String(fechaObj.getMonth() + 1).padStart(2, "0");
+    const anio = String(fechaObj.getFullYear());
+    const fechaFormateada = `${dia}-${mes}-${anio}`;
+
+    // --- Calcular altura dinámica ---
+    const lineHeight = 15;
+    const qrHeight = 120;
+    let altura = 500;
+    altura = Math.max(altura, 380);
+
+    const page = pdfDoc.addPage([210, altura]);
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const fontSize = 11;
+
+    let y = altura - 20;
+
+    // --- Encabezado ---
+    const encabezado = [
+      "BOLETO DE TRANSACCIÓN",
+      "VENTA - COPIA CLIENTE",
+      " ",
+      "INMOBILIARIA E INVERSIONES",
+      "P Y R S.A.",
+      "RUT: 96.971.370-5",
+      "SAN BORJA N1251",
+      "ESTACION CENTRAL",
+      "Santiago - Chile",
+      "---------------------------------------------",
+    ];
+    encabezado.forEach(line => {
+      const textWidth = font.widthOfTextAtSize(line, fontSize);
+      const centeredX = (210 - textWidth) / 2;
+      page.drawText(line, { x: centeredX, y, size: fontSize, font });
+      y -= lineHeight;
+    });
+
+    // --- Número de ticket ---
+    const codigoText = `Número Ticket : ${Codigo}`;
+    const codigoWidth = font.widthOfTextAtSize(codigoText, fontSize);
+    const codigoX = (210 - codigoWidth) / 2;
+    page.drawText(codigoText, { x: codigoX, y, size: fontSize, font });
+    y -= lineHeight;
+
+    // --- QR ---
+    if (qrBase64) {
+      const qrImage = await pdfDoc.embedPng(`data:image/png;base64,${qrBase64}`);
+      const qrDims = qrImage.scale(0.5);
+      const qrX = (210 - qrDims.width) / 2;
+      const qrY = y - qrDims.height;
+      page.drawImage(qrImage, { x: qrX, y: qrY, width: qrDims.width, height: qrDims.height });
+      y = qrY - 10;
+    }
+
+    // --- Detalle ---
+    const detalle = [
+      "---------------------------------------------",
+      `Nº boleta : ${numeroBoleta}`,
+      `Fecha : ${fechaFormateada}`,
+      `Hora  : ${hora}`,
+      `Tipo  : ${tipo}`,
+      valor ? `Monto : $${Number(valor).toLocaleString("es-CL")}` : null,
+      "---------------------------------------------",
+    ].filter(Boolean);
+    detalle.forEach(line => {
+      const textWidth = font.widthOfTextAtSize(line, fontSize);
+      const centeredX = (210 - textWidth) / 2;
+      page.drawText(line, { x: centeredX, y, size: fontSize, font });
+      y -= lineHeight;
+    });
+
+    // --- Footer ---
+    const footer = ["VÁLIDO COMO BOLETA", "Gracias por su compra"];
+    footer.forEach(line => {
+      const textWidth = font.widthOfTextAtSize(line, fontSize);
+      const centeredX = (210 - textWidth) / 2;
+      page.drawText(line, { x: centeredX, y, size: fontSize, font });
+      y -= lineHeight;
+    });
+
+    // --- Guardar PDF en base64 ---
+    const pdfBytes = await pdfDoc.save();
+    const pdfBase64 = btoa(String.fromCharCode(...pdfBytes));
+
+    // --- Enviar a backend local para imprimir ---
+    const response = await fetch("http://localhost:3000/api/imprimir", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pdfData: pdfBase64,
+        printer: "POS58",
+        filename: `ticket-${Codigo}-${Date.now()}.pdf`,
+      }),
+    });
+
+    const result = await response.json();
+    if (!result.success) throw new Error(result.message || "Error al imprimir");
+
+    console.log("✅ Ticket enviado a impresión correctamente");
+  } catch (error) {
+    console.error("🛑 Error en imprimirTicket:", error.message);
+  }
+}
+
 // Llamar al cargar la página
 cargarServicios();
 
@@ -148,9 +285,8 @@ async function continuarConPago(metodoPago) {
   const precioFinal = getPrecio(tipo);
   const datos = { Codigo, hora, fecha, tipo, valor: precioFinal };
 
-  // Validación y pago con tarjeta
+  // 🔹 Validación y pago con tarjeta
   if (metodoPago === "TARJETA") {
-    // Usa el precio traído desde /api/servicios
     const monto = Math.round(Number(precioFinal) || 0);
 
     try {
@@ -159,10 +295,7 @@ async function continuarConPago(metodoPago) {
       const res = await fetch("http://localhost:3000/api/payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: monto,
-          ticketNumber: Codigo,
-        }),
+        body: JSON.stringify({ amount: monto, ticketNumber: Codigo }),
       });
 
       const contentType = res.headers.get("content-type");
@@ -195,7 +328,7 @@ async function continuarConPago(metodoPago) {
     }
   }
 
-  // Mostrar datos en interfaz
+  // 🔹 Mostrar datos en interfaz
   parrafoFecha.textContent = fecha;
   parrafoHora.textContent = hora;
   parrafoTipo.textContent = `${tipo} (${metodoPago})`;
@@ -203,7 +336,7 @@ async function continuarConPago(metodoPago) {
 
   showSpinner();
 
-  // Obtener ID del usuario desde el token
+  // 🔹 Obtener ID del usuario desde el token
   const token = sessionStorage.getItem('authToken');
   const jwtPayload = parseJwt(token);
 
@@ -215,8 +348,10 @@ async function continuarConPago(metodoPago) {
 
   const id_usuario = jwtPayload.id;
 
+  // 🔹 Guardar en backend central
   await callApi(datos);
-  // Registrar movimiento en la base de datos
+
+  // 🔹 Registrar movimiento en backend local
   await fetch('http://localhost:3000/api/caja/movimientos', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -232,54 +367,35 @@ async function continuarConPago(metodoPago) {
     })
   });
 
-  // Generar y enviar voucher con QR
+  // 🔹 Generar QR y convertirlo a base64
   QR.makeCode(Codigo);
-  await new Promise(resolve => setTimeout(resolve, 500));
-
+  await new Promise(resolve => setTimeout(resolve, 500)); // espera a que el canvas se renderice
   const qrCanvas = contenedorQR.querySelector("canvas");
   const qrBase64 = qrCanvas
     ? qrCanvas.toDataURL("image/png").replace(/^data:image\/png;base64,/, "")
     : "";
 
-  const printPayload = { Codigo, hora, fecha, tipo, valor: precioFinal, qrBase64 };
-  
-  const estado = document.createElement("p");
-  contenedorQR.appendChild(estado);
+  // 🔹 Imprimir ticket con formato antiguo + QR
+  await imprimirTicket({ Codigo, hora, fecha, tipo, valor: precioFinal, qrBase64 });
 
-  try {
-    const res = await fetch('http://localhost:3000/api/print', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(printPayload)
-    });
-
-    const contentType = res.headers.get('content-type');
-    if (contentType?.includes('application/json')) {
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'Error inesperado');
-    } else {
-      const text = await res.text();
-      throw new Error(`Respuesta no JSON: ${text}`);
-    }
-  } catch (err) {
-    estado.textContent = `❌ Error al imprimir: ${err.message}`;
-  } finally {
-    hideSpinner();
-    if (botonActivo) {
-      botonActivo.disabled = false;
-      botonActivo.classList.remove("disabled");
-      botonActivo = null;
-    }
-  }
-
-  // Registro interno adicional
+  // 🔹 Registro interno adicional (ZKTeco)
   addUser(Codigo);
   setTimeout(() => addUserAccessLevel(Codigo.substring(0, 6)), 1000);
 
+  
+  // 🔹 Reactivar botón que generó el ticket
+  if (botonActivo) {
+    botonActivo.disabled = false;
+    botonActivo.classList.remove("disabled");
+    botonActivo = null;
+  }
+  
+  // 🔹 Cerrar modal y limpiar estado
   document.getElementById("modalPago").style.display = "none";
   datosPendientes = null;
+  hideSpinner();
 
-  // Función local para decodificar el JWT
+  // --- Función auxiliar JWT ---
   function parseJwt(token) {
     try {
       const base64Url = token.split('.')[1];

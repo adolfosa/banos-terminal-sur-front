@@ -261,7 +261,7 @@ document.addEventListener("DOMContentLoaded", function () {
   reimprimirBtn2.addEventListener("click", async function () {
     if (isPrinting2) return;
     isPrinting2 = true;
-    
+
     const codigo = document.querySelector(".info-item:nth-child(2) .info-value").textContent.trim();
     const tipo = document.querySelector(".info-item:nth-child(1) .info-value").textContent.trim();
     const fecha = document.querySelector(".info-item:nth-child(3) .info-value").textContent.trim();
@@ -295,30 +295,9 @@ document.addEventListener("DOMContentLoaded", function () {
         qrBase64 = qrCanvas.toDataURL("image/png").replace(/^data:image\/png;base64,/, "");
       }
 
-      const payload = {
-        Codigo: codigo,
-        fecha,
-        hora,
-        tipo,
-        qrBase64
-      };
+      const payload = { Codigo: codigo, tipo, fecha, hora, qrBase64 };
 
-      const res = await fetch("http://localhost:3000/api/reprint", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      const contentType = res.headers.get("content-type");
-      if (contentType && contentType.includes("application/json")) {
-        const data = await res.json();
-        if (!data.success) {
-          throw new Error(data.error || "Error inesperado");
-        }
-      } else {
-        const text = await res.text();
-        throw new Error(`Respuesta no JSON: ${text}`);
-      }
+      await reimprimirTicket(payload);
 
       Swal.fire({
         icon: "success",
@@ -519,7 +498,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // Función para manejar la reimpresión
-  function manejarReimpresion(item, estadoTicket, contenedorTicketQR1) {
+  async function manejarReimpresion(item, estadoTicket, contenedorTicketQR1) {
     if (estadoTicket !== "BOLETO SIN USAR") {
       Swal.fire({
         icon: "warning",
@@ -538,78 +517,42 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (isPrinting) return;
     isPrinting = true;
-    
+
     showSpinner();
 
     try {
+      // 🔹 Obtener QR ya renderizado en pantalla
       const qrCanvas = contenedorTicketQR1.querySelector("canvas");
       let qrBase64 = "";
       if (qrCanvas) {
         qrBase64 = qrCanvas.toDataURL("image/png").replace(/^data:image\/png;base64,/, "");
       }
 
+      // 🔹 Payload para el ticket
       const payload = {
         Codigo: item.Codigo,
         fecha: item.date,
         hora: item.time,
         tipo: item.tipo,
-        qrBase64
+        valor: item.valor,
+        qrBase64,
       };
 
-      fetch('http://localhost:3000/api/reprint', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-      .then(res => {
-        const contentType = res.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          return res.json().then(data => {
-            if (!data.success) {
-              throw new Error(data.error || 'Error inesperado');
-            }
-            return data;
-          });
-        } else {
-          return res.text().then(text => {
-            throw new Error(`Respuesta no JSON: ${text}`);
-          });
-        }
-      })
-      .then(() => {
-        Swal.fire({
-          icon: "success",
-          title: "Reimpresión enviada",
-          text: `El ticket ${item.Codigo} ha sido enviado a impresión.`,
-          customClass: {
-            title: "swal-font",
-            htmlContainer: "swal-font",
-            popup: "alert-card",
-            confirmButton: "my-confirm-btn",
-          },
-          buttonsStyling: false,
-        });
-      })
-      .catch(err => {
-        console.error("Error al imprimir:", err);
-        Swal.fire({
-          icon: "error",
-          title: "Error al imprimir",
-          text: err.message || "No se pudo imprimir el ticket.",
-          customClass: {
-            title: "swal-font",
-            htmlContainer: "swal-font",
-            popup: "alert-card",
-            confirmButton: "my-confirm-btn",
-          },
-          buttonsStyling: false,
-        });
-      })
-      .finally(() => {
-        hideSpinner();
-        isPrinting = false;
-      });
+      // 🔹 Generar comprobante en el front y enviarlo a impresión
+      await reimprimirTicket(payload);
 
+      Swal.fire({
+        icon: "success",
+        title: "Reimpresión enviada",
+        text: `El ticket ${item.Codigo} ha sido enviado a impresión.`,
+        customClass: {
+          title: "swal-font",
+          htmlContainer: "swal-font",
+          popup: "alert-card",
+          confirmButton: "my-confirm-btn",
+        },
+        buttonsStyling: false,
+      });
     } catch (err) {
       console.error("Error al imprimir:", err);
       Swal.fire({
@@ -624,6 +567,7 @@ document.addEventListener("DOMContentLoaded", function () {
         },
         buttonsStyling: false,
       });
+    } finally {
       hideSpinner();
       isPrinting = false;
     }
@@ -681,5 +625,101 @@ function hideSpinner() {
   const spinner = document.getElementById("spinner");
   if (spinner) {
     spinner.style.display = "none";
+  }
+}
+
+async function reimprimirTicket({ Codigo, hora, fecha, tipo, valor, qrBase64 }) {
+  try {
+    console.log("🟢 Iniciando proceso de REIMPRESIÓN de ticket");
+    const { PDFDocument, StandardFonts } = PDFLib;
+    const pdfDoc = await PDFDocument.create();
+
+    // Formatear fecha
+    const fechaObj = new Date(fecha);
+    const dia = String(fechaObj.getDate()).padStart(2, "0");
+    const mes = String(fechaObj.getMonth() + 1).padStart(2, "0");
+    const anio = String(fechaObj.getFullYear());
+    const fechaFormateada = `${dia}-${mes}-${anio}`;
+
+    // Altura dinámica
+    const lineHeight = 15;
+    const qrHeight = 120;
+    let altura = 500;
+    const page = pdfDoc.addPage([210, altura]);
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const fontSize = 11;
+
+    let y = altura - 20;
+
+    // --- Encabezado ---
+    const encabezado = ["REIMPRESIÓN", "---------------------------------------------"];
+    encabezado.forEach(line => {
+      const textWidth = font.widthOfTextAtSize(line, fontSize);
+      page.drawText(line, { x: (210 - textWidth) / 2, y, size: fontSize, font });
+      y -= lineHeight;
+    });
+
+    // --- Código del ticket ---
+    const codigoText = `Código : ${Codigo}`;
+    const codigoWidth = font.widthOfTextAtSize(codigoText, fontSize);
+    page.drawText(codigoText, { x: (210 - codigoWidth) / 2, y, size: fontSize, font });
+    y -= lineHeight;
+
+    // --- QR ---
+    if (qrBase64) {
+      const qrImage = await pdfDoc.embedPng(`data:image/png;base64,${qrBase64}`);
+      const qrDims = qrImage.scale(0.5);
+      page.drawImage(qrImage, {
+        x: (210 - qrDims.width) / 2,
+        y: y - qrHeight,
+        width: qrDims.width,
+        height: qrDims.height,
+      });
+      y = y - qrHeight - 10;
+    }
+
+    // --- Detalle ---
+    const detalle = [
+      "---------------------------------------------",
+      `Fecha : ${fechaFormateada}`,
+      `Hora  : ${hora}`,
+      `Tipo  : ${tipo}`,
+      valor ? `Monto : $${valor}` : null,
+      "---------------------------------------------",
+    ].filter(Boolean);
+    detalle.forEach(line => {
+      const textWidth = font.widthOfTextAtSize(line, fontSize);
+      page.drawText(line, { x: (210 - textWidth) / 2, y, size: fontSize, font });
+      y -= lineHeight;
+    });
+
+    // --- Footer ---
+    const footer = ["COMPROBANTE DE REIMPRESIÓN", "Válido solo como comprobante"];
+    footer.forEach(line => {
+      const textWidth = font.widthOfTextAtSize(line, fontSize);
+      page.drawText(line, { x: (210 - textWidth) / 2, y, size: fontSize, font });
+      y -= lineHeight;
+    });
+
+    // Guardar y enviar a impresión
+    const pdfBytes = await pdfDoc.save();
+    const pdfBase64 = btoa(String.fromCharCode(...pdfBytes));
+
+    const res = await fetch("http://localhost:3000/api/imprimir", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pdfData: pdfBase64,
+        printer: "POS58",
+        filename: `reimpresion-${Codigo}-${Date.now()}.pdf`,
+      }),
+    });
+
+    const result = await res.json();
+    if (!result.success) throw new Error(result.message || "Error al imprimir");
+
+    console.log("✅ Reimpresión enviada correctamente");
+  } catch (error) {
+    console.error("🛑 Error en reimprimirTicket:", error.message);
   }
 }
