@@ -161,7 +161,7 @@ $(document).ready(function () {
 
         // ✅ 3. Mostrar movimientos por caja   
         $.ajax({
-          url: `http://localhost:4000/api/movimientos/por-caja?numero_caja=${numeroCaja}`,
+          url: `https://backend-banios.dev-wit.com/api/movimientos/por-caja?numero_caja=${numeroCaja}`,
           type: 'GET',
           headers: {
             'Authorization': 'Bearer ' + token
@@ -350,7 +350,7 @@ $(document).ready(function () {
 
         // Hacer la petición para abrir la caja
         $.ajax({
-          url: 'http://localhost:4000/api/aperturas-cierres/abrir',
+          url: 'https://backend-banios.dev-wit.com/api/aperturas-cierres/abrir',
           type: 'POST',
           contentType: 'application/json',
           dataType: 'json',
@@ -657,7 +657,7 @@ $(document).ready(function () {
       if (result.isConfirmed) {
         // Proceder con el cierre de caja
         $.ajax({
-          url: 'http://localhost:4000/api/aperturas-cierres/cerrar',
+          url: 'https://backend-banios.dev-wit.com/api/aperturas-cierres/cerrar',
           type: 'POST',
           contentType: 'application/json',
           data: JSON.stringify({
@@ -1003,7 +1003,7 @@ $(document).ready(function () {
       try {
         // 1. Registrar el retiro
         const response = await $.ajax({
-          url: 'http://localhost:4000/api/aperturas-cierres/retiro',
+          url: 'https://backend-banios.dev-wit.com/api/aperturas-cierres/retiro',
           type: 'POST',
           headers: {
             'Authorization': 'Bearer ' + token,
