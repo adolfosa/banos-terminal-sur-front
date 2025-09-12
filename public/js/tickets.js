@@ -280,12 +280,11 @@ function cerrarModalPago() {
 async function continuarConPago(metodoPago) {
   if (!datosPendientes) return;
 
-  const { Codigo, hora, fecha, tipo } = datosPendientes;
+  const { Codigo, hora, fecha, tipo } = datosPendientes; // código inicial mostrado en UI
   const estado_caja = localStorage.getItem('estado_caja');
   const precioFinal = getPrecio(tipo);
-  const datos = { Codigo, hora, fecha, tipo, valor: precioFinal };
 
-  // 🔹 Validación y pago con tarjeta
+  // 🔹 Validación y pago con tarjeta (POS)
   if (metodoPago === "TARJETA") {
     const monto = Math.round(Number(precioFinal) || 0);
 
@@ -328,7 +327,7 @@ async function continuarConPago(metodoPago) {
     }
   }
 
-  // 🔹 Mostrar datos en interfaz
+  // 🔹 Mostrar datos en interfaz (del pedido original)
   parrafoFecha.textContent = fecha;
   parrafoHora.textContent = hora;
   parrafoTipo.textContent = `${tipo} (${metodoPago})`;
@@ -345,51 +344,143 @@ async function continuarConPago(metodoPago) {
     window.location.href = '/login.html';
     return;
   }
-
   const id_usuario = jwtPayload.id;
 
-  // 🔹 Guardar en backend central
-  await callApi(datos);
+  // 🔹 Flujo de impresión
+  if (metodoPago === "EFECTIVO") {
+    // Pedir cantidad de tickets
+    const { value: cantidad } = await Swal.fire({
+      title: "Cantidad de tickets",
+      input: "number",
+      inputLabel: "Ingrese cuántos tickets desea imprimir",
+      inputAttributes: { min: 1, step: 1 },
+      inputValue: 1,
+      confirmButtonText: "Aceptar",
+      customClass: {
+        title: "swal-font",
+        popup: "alert-card",
+        confirmButton: "my-confirm-btn"
+      },
+      buttonsStyling: false,
+      allowOutsideClick: false,
+      allowEscapeKey: false
+    });
 
-  // 🔹 Registrar movimiento en backend local
-  await fetch('http://localhost:3000/api/caja/movimientos', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      codigo: Codigo,
-      fecha,
-      hora,
-      tipo,
-      valor: precioFinal,
-      metodoPago,
-      estado_caja,
-      id_usuario
-    })
-  });
+    if (!cantidad || cantidad <= 0) {
+      hideSpinner();
+      cerrarModalPago();
+      return;
+    }
 
-  // 🔹 Generar QR y convertirlo a base64
-  QR.makeCode(Codigo);
-  await new Promise(resolve => setTimeout(resolve, 500)); // espera a que el canvas se renderice
-  const qrCanvas = contenedorQR.querySelector("canvas");
-  const qrBase64 = qrCanvas
-    ? qrCanvas.toDataURL("image/png").replace(/^data:image\/png;base64,/, "")
-    : "";
+    for (let i = 1; i <= cantidad; i++) {
+      // ⏱️ Timestamp por ticket
+      const now = new Date();
+      const horaI = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+      const fechaI = now.toISOString().split("T")[0];
 
-  // 🔹 Imprimir ticket con formato antiguo + QR
-  await imprimirTicket({ Codigo, hora, fecha, tipo, valor: precioFinal, qrBase64 });
+      // 🔑 Código único + QR único
+      const codigoI = generarTokenNumerico();
+      QR.makeCode(codigoI);
+      await new Promise(resolve => setTimeout(resolve, 500)); // espera canvas
+      const qrCanvas = contenedorQR.querySelector("canvas");
+      const qrBase64 = qrCanvas
+        ? qrCanvas.toDataURL("image/png").replace(/^data:image\/png;base64,/, "")
+        : "";
 
-  // 🔹 Registro interno adicional (ZKTeco)
-  addUser(Codigo);
-  setTimeout(() => addUserAccessLevel(Codigo.substring(0, 6)), 1000);
+      // 🗂️ Guardar en backend central (cada ticket = un registro)
+      await callApi({ Codigo: codigoI, hora: horaI, fecha: fechaI, tipo, valor: precioFinal });
 
-  
+      // 💾 Registrar movimiento en backend local (cada ticket = un movimiento)
+      await fetch('http://localhost:3000/api/caja/movimientos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          codigo: codigoI,
+          fecha: fechaI,
+          hora: horaI,
+          tipo,
+          valor: precioFinal,
+          metodoPago,
+          estado_caja,
+          id_usuario
+        })
+      });
+
+      // 🖨️ Imprimir ticket (cada llamada genera folio único vía /api/boletas/enviar)
+      await imprimirTicket({ Codigo: codigoI, hora: horaI, fecha: fechaI, tipo, valor: precioFinal, qrBase64 });
+
+      // 🔐 (Opcional) Registrar acceso en ZKTeco por ticket
+      try {
+        addUser(codigoI);
+        setTimeout(() => addUserAccessLevel(codigoI.substring(0, 6)), 1000);
+      } catch (e) {
+        console.warn("ZKTeco: no se pudo registrar acceso para", codigoI, e);
+      }
+
+      if (i < cantidad) {
+        // ✋ Pausa para corte manual
+        await Swal.fire({
+          title: `Ticket ${i} impreso`,
+          text: "Corte el ticket y presione Continuar para el siguiente.",
+          icon: "info",
+          confirmButtonText: "Continuar",
+          customClass: {
+            title: "swal-font",
+            popup: "alert-card",
+            confirmButton: "my-confirm-btn"
+          },
+          buttonsStyling: false,
+          allowOutsideClick: false,
+          allowEscapeKey: false
+        });
+      }
+    }
+
+  } else {
+    // 💳 TARJETA → Un único ticket (mantiene comportamiento)
+    // QR único (del pedido original)
+    QR.makeCode(Codigo);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const qrCanvas = contenedorQR.querySelector("canvas");
+    const qrBase64 = qrCanvas
+      ? qrCanvas.toDataURL("image/png").replace(/^data:image\/png;base64,/, "")
+      : "";
+
+    // Guardar registro y movimiento (1 vez)
+    await callApi({ Codigo, hora, fecha, tipo, valor: precioFinal });
+    await fetch('http://localhost:3000/api/caja/movimientos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        codigo: Codigo,
+        fecha,
+        hora,
+        tipo,
+        valor: precioFinal,
+        metodoPago,
+        estado_caja,
+        id_usuario
+      })
+    });
+
+    await imprimirTicket({ Codigo, hora, fecha, tipo, valor: precioFinal, qrBase64 });
+
+    // (Opcional) ZKTeco para el ticket de tarjeta
+    try {
+      addUser(Codigo);
+      setTimeout(() => addUserAccessLevel(Codigo.substring(0, 6)), 1000);
+    } catch (e) {
+      console.warn("ZKTeco: no se pudo registrar acceso para", Codigo, e);
+    }
+  }
+
   // 🔹 Reactivar botón que generó el ticket
   if (botonActivo) {
     botonActivo.disabled = false;
     botonActivo.classList.remove("disabled");
     botonActivo = null;
   }
-  
+
   // 🔹 Cerrar modal y limpiar estado
   document.getElementById("modalPago").style.display = "none";
   datosPendientes = null;
