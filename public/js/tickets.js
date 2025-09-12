@@ -280,7 +280,7 @@ function cerrarModalPago() {
 async function continuarConPago(metodoPago) {
   if (!datosPendientes) return;
 
-  const { Codigo, hora, fecha, tipo } = datosPendientes; // código inicial mostrado en UI
+  const { Codigo, hora, fecha, tipo } = datosPendientes;
   const estado_caja = localStorage.getItem('estado_caja');
   const precioFinal = getPrecio(tipo);
 
@@ -346,9 +346,49 @@ async function continuarConPago(metodoPago) {
   }
   const id_usuario = jwtPayload.id;
 
-  // 🔹 Flujo de impresión
+  // 🔹 Flujo según método de pago
   if (metodoPago === "EFECTIVO") {
-    // Pedir cantidad de tickets
+    // ✅ Un solo ticket inmediato
+    const now = new Date();
+    const horaI = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+    const fechaI = now.toISOString().split("T")[0];
+    const codigoI = generarTokenNumerico();
+
+    QR.makeCode(codigoI);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const qrCanvas = contenedorQR.querySelector("canvas");
+    const qrBase64 = qrCanvas
+      ? qrCanvas.toDataURL("image/png").replace(/^data:image\/png;base64,/, "")
+      : "";
+
+    await callApi({ Codigo: codigoI, hora: horaI, fecha: fechaI, tipo, valor: precioFinal });
+
+    await fetch('http://localhost:3000/api/caja/movimientos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        codigo: codigoI,
+        fecha: fechaI,
+        hora: horaI,
+        tipo,
+        valor: precioFinal,
+        metodoPago,
+        estado_caja,
+        id_usuario
+      })
+    });
+
+    await imprimirTicket({ Codigo: codigoI, hora: horaI, fecha: fechaI, tipo, valor: precioFinal, qrBase64 });
+
+    try {
+      addUser(codigoI);
+      setTimeout(() => addUserAccessLevel(codigoI.substring(0, 6)), 1000);
+    } catch (e) {
+      console.warn("ZKTeco: no se pudo registrar acceso para", codigoI, e);
+    }
+
+  } else if (metodoPago === "EFECTIVO_LOTE") {
+    // ✅ Varios tickets con pausa y corte manual
     const { value: cantidad } = await Swal.fire({
       title: "Cantidad de tickets",
       input: "number",
@@ -373,24 +413,20 @@ async function continuarConPago(metodoPago) {
     }
 
     for (let i = 1; i <= cantidad; i++) {
-      // ⏱️ Timestamp por ticket
       const now = new Date();
       const horaI = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
       const fechaI = now.toISOString().split("T")[0];
-
-      // 🔑 Código único + QR único
       const codigoI = generarTokenNumerico();
+
       QR.makeCode(codigoI);
-      await new Promise(resolve => setTimeout(resolve, 500)); // espera canvas
+      await new Promise(resolve => setTimeout(resolve, 500));
       const qrCanvas = contenedorQR.querySelector("canvas");
       const qrBase64 = qrCanvas
         ? qrCanvas.toDataURL("image/png").replace(/^data:image\/png;base64,/, "")
         : "";
 
-      // 🗂️ Guardar en backend central (cada ticket = un registro)
       await callApi({ Codigo: codigoI, hora: horaI, fecha: fechaI, tipo, valor: precioFinal });
 
-      // 💾 Registrar movimiento en backend local (cada ticket = un movimiento)
       await fetch('http://localhost:3000/api/caja/movimientos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -406,10 +442,8 @@ async function continuarConPago(metodoPago) {
         })
       });
 
-      // 🖨️ Imprimir ticket (cada llamada genera folio único vía /api/boletas/enviar)
       await imprimirTicket({ Codigo: codigoI, hora: horaI, fecha: fechaI, tipo, valor: precioFinal, qrBase64 });
 
-      // 🔐 (Opcional) Registrar acceso en ZKTeco por ticket
       try {
         addUser(codigoI);
         setTimeout(() => addUserAccessLevel(codigoI.substring(0, 6)), 1000);
@@ -418,7 +452,6 @@ async function continuarConPago(metodoPago) {
       }
 
       if (i < cantidad) {
-        // ✋ Pausa para corte manual
         await Swal.fire({
           title: `Ticket ${i} impreso`,
           text: "Corte el ticket y presione Continuar para el siguiente.",
@@ -437,8 +470,7 @@ async function continuarConPago(metodoPago) {
     }
 
   } else {
-    // 💳 TARJETA → Un único ticket (mantiene comportamiento)
-    // QR único (del pedido original)
+    // 💳 TARJETA → Un único ticket
     QR.makeCode(Codigo);
     await new Promise(resolve => setTimeout(resolve, 500));
     const qrCanvas = contenedorQR.querySelector("canvas");
@@ -446,8 +478,8 @@ async function continuarConPago(metodoPago) {
       ? qrCanvas.toDataURL("image/png").replace(/^data:image\/png;base64,/, "")
       : "";
 
-    // Guardar registro y movimiento (1 vez)
     await callApi({ Codigo, hora, fecha, tipo, valor: precioFinal });
+
     await fetch('http://localhost:3000/api/caja/movimientos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -465,7 +497,6 @@ async function continuarConPago(metodoPago) {
 
     await imprimirTicket({ Codigo, hora, fecha, tipo, valor: precioFinal, qrBase64 });
 
-    // (Opcional) ZKTeco para el ticket de tarjeta
     try {
       addUser(Codigo);
       setTimeout(() => addUserAccessLevel(Codigo.substring(0, 6)), 1000);
@@ -663,4 +694,8 @@ document.getElementById("btnPagoEfectivo").addEventListener("click", () => {
 
 document.getElementById("btnPagoTarjeta").addEventListener("click", () => {
   continuarConPago("TARJETA");
+});
+
+document.getElementById("btnPagoEfectivoLote").addEventListener("click", () => {
+  continuarConPago("EFECTIVO_LOTE");
 });
