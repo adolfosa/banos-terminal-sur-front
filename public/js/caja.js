@@ -530,6 +530,7 @@ $(document).ready(function () {
   // Función para realizar el cierre de caja después de la autenticación
   async function imprimirCopiaCierre(datosImpresion) {
     try {
+      const { PDFDocument, StandardFonts } = PDFLib;
       const pdfDoc = await PDFDocument.create();
       const page = pdfDoc.addPage([210, 780]); // Aumentar altura para incluir ambas líneas
 
@@ -576,11 +577,9 @@ $(document).ready(function () {
       });
 
       const pdfBytes = await pdfDoc.save();
-      const filePath = path.join(os.tmpdir(), `cierre-caja-${Date.now()}.pdf`);
-      fs.writeFileSync(filePath, pdfBytes);
       const pdfBase64 = btoa(String.fromCharCode(...pdfBytes));
 
-      // 3. Enviar a la API de impresión
+      // Enviar a la API de impresión
       const response = await $.ajax({
         url: "http://localhost:3000/api/imprimir",
         type: "POST",
@@ -588,7 +587,7 @@ $(document).ready(function () {
         data: JSON.stringify({
           pdfData: pdfBase64,
           printer: "POS58",
-          filename: `retiro-${datosImpresion.codigo}-${Date.now()}.pdf`
+          filename: `cierre-${Date.now()}.pdf`
         })
       });
 
@@ -673,6 +672,7 @@ $(document).ready(function () {
           success: async function (data) {
             if (data.success) {
               const payload = data.data;
+              const { PDFDocument, StandardFonts } = PDFLib;
               await imprimirCopiaCierre(payload.datosImpresion);
 
 
