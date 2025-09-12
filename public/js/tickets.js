@@ -342,7 +342,6 @@ async function continuarConPago(metodoPago) {
   // 🔹 Obtener ID del usuario desde el token
   const token = sessionStorage.getItem('authToken');
   const jwtPayload = parseJwt(token);
-
   if (!jwtPayload?.id) {
     alert('Sesión expirada. Inicia sesión nuevamente.');
     window.location.href = '/login.html';
@@ -358,15 +357,16 @@ async function continuarConPago(metodoPago) {
     const fechaI = now.toISOString().split("T")[0];
     const codigoI = generarTokenNumerico();
 
+    // QR único
     QR.makeCode(codigoI);
     await new Promise(resolve => setTimeout(resolve, 500));
     const qrCanvas = contenedorQR.querySelector("canvas");
-    const qrBase64 = qrCanvas
-      ? qrCanvas.toDataURL("image/png").replace(/^data:image\/png;base64,/, "")
-      : "";
+    const qrBase64 = qrCanvas ? qrCanvas.toDataURL("image/png").replace(/^data:image\/png;base64,/,"") : "";
 
+    // Registro central
     await callApi({ Codigo: codigoI, hora: horaI, fecha: fechaI, tipo, valor: precioFinal });
 
+    // Movimiento local
     await fetch('http://localhost:3000/api/caja/movimientos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -382,8 +382,10 @@ async function continuarConPago(metodoPago) {
       })
     });
 
+    // Impresión (folio único normal lo resuelve imprimirTicket)
     await imprimirTicket({ Codigo: codigoI, hora: horaI, fecha: fechaI, tipo, valor: precioFinal, qrBase64 });
 
+    // ZKTeco opcional
     try {
       addUser(codigoI);
       setTimeout(() => addUserAccessLevel(codigoI.substring(0, 6)), 1000);
@@ -392,6 +394,7 @@ async function continuarConPago(metodoPago) {
     }
 
   } else if (metodoPago === "EFECTIVO_LOTE") {
+    // ✅ Lote: todas las llamadas por cada boleta
     const cantidad = await seleccionarCantidadTicketsAccesible();
     if (!cantidad || cantidad <= 0) {
       hideSpinner();
@@ -399,20 +402,40 @@ async function continuarConPago(metodoPago) {
       return;
     }
 
-    // 🔹 Llamada única para obtener folio padre
-    const res = await fetch("https://backend-banios.dev-wit.com/api/boletas/enviar-lote", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        nombre: tipo,
-        precio: precioFinal,
-        cantidad,
-        monto_total: precioFinal * cantidad
-      })
-    });
-    const loteData = await res.json();
-    const folioPadre = loteData.folio_padre;
+    // 1) Llamada única para obtener folio padre
+    let folioPadre = null;
+    try {
+      const resLote = await fetch("https://backend-banios.dev-wit.com/api/boletas/enviar-lote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nombre: tipo,
+          precio: precioFinal,
+          cantidad,
+          monto_total: precioFinal * cantidad
+        })
+      });
+      const loteData = await resLote.json();
+      if (!resLote.ok || !loteData?.folio_padre) {
+        throw new Error(loteData?.error || "No se recibió folio_padre");
+      }
+      folioPadre = loteData.folio_padre;
+      
+    } catch (e) {
+      console.error("❌ Error al solicitar lote:", e);
+      Swal.fire({
+        icon: "error",
+        title: "Error al solicitar folios",
+        text: e.message || "No fue posible obtener folio padre para el lote.",
+        customClass: { popup: "alert-card", title: "swal-font", confirmButton: "my-confirm-btn" },
+        buttonsStyling: false
+      });
+      hideSpinner();
+      cerrarModalPago();
+      return;
+    }
 
+    // 2) Iterar y hacer TODAS las llamadas por cada ticket
     for (let i = 1; i <= cantidad; i++) {
       const now = new Date();
       const horaI = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
@@ -423,15 +446,15 @@ async function continuarConPago(metodoPago) {
       QR.makeCode(codigoI);
       await new Promise(resolve => setTimeout(resolve, 500));
       const qrCanvas = contenedorQR.querySelector("canvas");
-      const qrBase64 = qrCanvas
-        ? qrCanvas.toDataURL("image/png").replace(/^data:image\/png;base64,/, "")
-        : "";
+      const qrBase64 = qrCanvas ? qrCanvas.toDataURL("image/png").replace(/^data:image\/png;base64,/,"") : "";
 
       // Folio hijo generado en front
       const folioHijo = `${folioPadre}-${i}`;
 
-      // Registro central/local
+      // Registro central (uno por ticket)
       await callApi({ Codigo: codigoI, hora: horaI, fecha: fechaI, tipo, valor: precioFinal });
+
+      // Movimiento local (uno por ticket)
       await fetch('http://localhost:3000/api/caja/movimientos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -448,7 +471,7 @@ async function continuarConPago(metodoPago) {
         })
       });
 
-      // Impresión con folio hijo
+      // Impresión con folio hijo (sin pedir folio a la API por ticket)
       await imprimirTicket({
         Codigo: codigoI,
         hora: horaI,
@@ -459,6 +482,15 @@ async function continuarConPago(metodoPago) {
         folioForzado: folioHijo
       });
 
+      // ZKTeco opcional (uno por ticket)
+      try {
+        addUser(codigoI);
+        setTimeout(() => addUserAccessLevel(codigoI.substring(0, 6)), 1000);
+      } catch (e) {
+        console.warn("ZKTeco: no se pudo registrar acceso para", codigoI, e);
+      }
+
+      // Pausa para corte manual (si no es el último)
       if (i < cantidad) {
         await pausaParaCorte(i, cantidad);
       }
@@ -471,9 +503,7 @@ async function continuarConPago(metodoPago) {
     QR.makeCode(Codigo);
     await new Promise(resolve => setTimeout(resolve, 500));
     const qrCanvas = contenedorQR.querySelector("canvas");
-    const qrBase64 = qrCanvas
-      ? qrCanvas.toDataURL("image/png").replace(/^data:image\/png;base64,/, "")
-      : "";
+    const qrBase64 = qrCanvas ? qrCanvas.toDataURL("image/png").replace(/^data:image\/png;base64,/,"") : "";
 
     await callApi({ Codigo, hora, fecha, tipo, valor: precioFinal });
 
@@ -529,6 +559,7 @@ async function continuarConPago(metodoPago) {
     }
   }
 }
+
 // 3.1) Modal accesible para elegir cantidad
 async function seleccionarCantidadTicketsAccesible() {
   return Swal.fire({
