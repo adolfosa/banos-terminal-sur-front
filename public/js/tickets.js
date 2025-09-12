@@ -127,31 +127,36 @@ async function cargarServicios() {
   }
 }
 
-async function imprimirTicket({ Codigo, hora, fecha, tipo, valor, qrBase64 }) {
+async function imprimirTicket({ Codigo, hora, fecha, tipo, valor, qrBase64, folioForzado }) {
   try {
     console.log("🟢 Iniciando proceso de impresión de ticket");
-    console.log("📋 Datos recibidos:", { Codigo, hora, fecha, tipo, valor });
+    console.log("📋 Datos recibidos:", { Codigo, hora, fecha, tipo, valor, folioForzado });
 
     if (!Codigo || !tipo) throw new Error("Campos requeridos faltantes");
 
-    // --- Obtener número de boleta real desde la API ---
+    // --- Determinar número de boleta ---
     let numeroBoleta = "001";
-    try {
-      const response = await fetch('https://backend-banios.dev-wit.com/api/boletas/enviar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre: tipo, precio: valor || 0 })
-      });
-
-      const responseData = await response.json();
-      if (response.ok) {
-        numeroBoleta = responseData.folio || responseData.numeroBoleta || responseData.id || responseData.numero || "001";
-      } else {
-        console.warn("⚠️ API devolvió error:", responseData.error || "desconocido");
-        numeroBoleta = responseData.folio || responseData.numero || numeroBoleta;
+    if (folioForzado) {
+      // ⚡ Caso de lote → usamos folio hijo ya generado en front
+      numeroBoleta = folioForzado;
+    } else {
+      // Caso normal → pedimos folio único a la API
+      try {
+        const response = await fetch("https://backend-banios.dev-wit.com/api/boletas/enviar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nombre: tipo, precio: valor || 0 })
+        });
+        const responseData = await response.json();
+        if (response.ok) {
+          numeroBoleta = responseData.folio || responseData.numeroBoleta || responseData.id || responseData.numero || "001";
+        } else {
+          console.warn("⚠️ API devolvió error:", responseData.error || "desconocido");
+          numeroBoleta = responseData.folio || numeroBoleta;
+        }
+      } catch (err) {
+        console.warn("❌ Error al conectar con API de boletas:", err.message);
       }
-    } catch (err) {
-      console.warn("❌ Error al conectar con API de boletas:", err.message);
     }
 
     // --- Crear documento PDF ---
@@ -165,7 +170,7 @@ async function imprimirTicket({ Codigo, hora, fecha, tipo, valor, qrBase64 }) {
     const anio = String(fechaObj.getFullYear());
     const fechaFormateada = `${dia}-${mes}-${anio}`;
 
-    // --- Calcular altura dinámica ---
+    // --- Configuración de página ---
     const lineHeight = 15;
     const qrHeight = 120;
     let altura = 500;
@@ -174,7 +179,6 @@ async function imprimirTicket({ Codigo, hora, fecha, tipo, valor, qrBase64 }) {
     const page = pdfDoc.addPage([210, altura]);
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const fontSize = 11;
-
     let y = altura - 20;
 
     // --- Encabezado ---
@@ -388,29 +392,26 @@ async function continuarConPago(metodoPago) {
     }
 
   } else if (metodoPago === "EFECTIVO_LOTE") {
-    // ✅ Varios tickets con pausa y corte manual
-    const { value: cantidad } = await Swal.fire({
-      title: "Cantidad de tickets",
-      input: "number",
-      inputLabel: "Ingrese cuántos tickets desea imprimir",
-      inputAttributes: { min: 1, step: 1 },
-      inputValue: 1,
-      confirmButtonText: "Aceptar",
-      customClass: {
-        title: "swal-font",
-        popup: "alert-card",
-        confirmButton: "my-confirm-btn"
-      },
-      buttonsStyling: false,
-      allowOutsideClick: false,
-      allowEscapeKey: false
-    });
-
+    const cantidad = await seleccionarCantidadTicketsAccesible();
     if (!cantidad || cantidad <= 0) {
       hideSpinner();
       cerrarModalPago();
       return;
     }
+
+    // 🔹 Llamada única para obtener folio padre
+    const res = await fetch("https://backend-banios.dev-wit.com/api/boletas/enviar-lote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nombre: tipo,
+        precio: precioFinal,
+        cantidad,
+        monto_total: precioFinal * cantidad
+      })
+    });
+    const loteData = await res.json();
+    const folioPadre = loteData.folio_padre;
 
     for (let i = 1; i <= cantidad; i++) {
       const now = new Date();
@@ -418,6 +419,7 @@ async function continuarConPago(metodoPago) {
       const fechaI = now.toISOString().split("T")[0];
       const codigoI = generarTokenNumerico();
 
+      // QR único
       QR.makeCode(codigoI);
       await new Promise(resolve => setTimeout(resolve, 500));
       const qrCanvas = contenedorQR.querySelector("canvas");
@@ -425,8 +427,11 @@ async function continuarConPago(metodoPago) {
         ? qrCanvas.toDataURL("image/png").replace(/^data:image\/png;base64,/, "")
         : "";
 
-      await callApi({ Codigo: codigoI, hora: horaI, fecha: fechaI, tipo, valor: precioFinal });
+      // Folio hijo generado en front
+      const folioHijo = `${folioPadre}-${i}`;
 
+      // Registro central/local
+      await callApi({ Codigo: codigoI, hora: horaI, fecha: fechaI, tipo, valor: precioFinal });
       await fetch('http://localhost:3000/api/caja/movimientos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -438,36 +443,28 @@ async function continuarConPago(metodoPago) {
           valor: precioFinal,
           metodoPago,
           estado_caja,
-          id_usuario
+          id_usuario,
+          folio: folioHijo
         })
       });
 
-      await imprimirTicket({ Codigo: codigoI, hora: horaI, fecha: fechaI, tipo, valor: precioFinal, qrBase64 });
-
-      try {
-        addUser(codigoI);
-        setTimeout(() => addUserAccessLevel(codigoI.substring(0, 6)), 1000);
-      } catch (e) {
-        console.warn("ZKTeco: no se pudo registrar acceso para", codigoI, e);
-      }
+      // Impresión con folio hijo
+      await imprimirTicket({
+        Codigo: codigoI,
+        hora: horaI,
+        fecha: fechaI,
+        tipo,
+        valor: precioFinal,
+        qrBase64,
+        folioForzado: folioHijo
+      });
 
       if (i < cantidad) {
-        await Swal.fire({
-          title: `Ticket ${i} impreso`,
-          text: "Corte el ticket y presione Continuar para el siguiente.",
-          icon: "info",
-          confirmButtonText: "Continuar",
-          customClass: {
-            title: "swal-font",
-            popup: "alert-card",
-            confirmButton: "my-confirm-btn"
-          },
-          buttonsStyling: false,
-          allowOutsideClick: false,
-          allowEscapeKey: false
-        });
+        await pausaParaCorte(i, cantidad);
       }
     }
+
+    await confirmarImpresionExitosa(cantidad);
 
   } else {
     // 💳 TARJETA → Un único ticket
@@ -531,6 +528,93 @@ async function continuarConPago(metodoPago) {
       return null;
     }
   }
+}
+// 3.1) Modal accesible para elegir cantidad
+async function seleccionarCantidadTicketsAccesible() {
+  return Swal.fire({
+    title: "🖨️ ¿Cuántos boletos desea imprimir?",
+    html: `
+      <div class="cantidad-grid" aria-label="Opciones rápidas de cantidad">
+        <button type="button" class="cantidad-btn" data-value="5">5</button>
+        <button type="button" class="cantidad-btn" data-value="10">10</button>
+        <button type="button" class="cantidad-btn" data-value="15">15</button>
+        <button type="button" class="cantidad-btn" data-value="20">20</button>
+      </div>
+      <p style="margin-top:12px">O ingrese otra cantidad (máx. 25):</p>
+      <input id="cantidadManual" type="number" min="1" max="25" class="cantidad-manual" aria-label="Cantidad manual" />
+    `,
+    focusConfirm: false,
+    showCancelButton: true,
+    confirmButtonText: "Aceptar",
+    cancelButtonText: "Cancelar",
+    customClass: {
+      popup: "alert-card",
+      title: "swal-font",
+      confirmButton: "my-confirm-btn",
+      cancelButton: "my-cancel-btn"
+    },
+    buttonsStyling: false,
+    allowOutsideClick: false,
+    allowEscapeKey: false,
+    didOpen: () => {
+      const grid = Swal.getHtmlContainer().querySelector(".cantidad-grid");
+      grid.querySelectorAll(".cantidad-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          grid.querySelectorAll(".cantidad-btn").forEach(b => b.classList.remove("selected"));
+          btn.classList.add("selected");
+        });
+      });
+      const manual = Swal.getHtmlContainer().querySelector("#cantidadManual");
+      manual.addEventListener("focus", () => {
+        grid.querySelectorAll(".cantidad-btn").forEach(b => b.classList.remove("selected"));
+      });
+    },
+    preConfirm: () => {
+      const manual = Number(Swal.getHtmlContainer().querySelector("#cantidadManual").value);
+      const selectedBtn = Swal.getHtmlContainer().querySelector(".cantidad-btn.selected");
+      const quick = selectedBtn ? Number(selectedBtn.dataset.value) : null;
+      
+      if (manual && manual > 0 && manual <= 25) return manual;
+      if (quick && quick > 0) return quick;
+      
+      Swal.showValidationMessage("Seleccione una cantidad válida (1 a 25).");
+      return false;
+    }
+  }).then(r => r.isConfirmed ? Number(r.value) : null);
+}
+
+// 3.2) Pausa para corte manual (entre tickets)
+async function pausaParaCorte(indice, total) {
+  return Swal.fire({
+    title: `✂️ Corte el boleto (${indice}/${total})`,
+    text: "Cuando lo haya cortado, presione Continuar.",
+    icon: "info",
+    confirmButtonText: "Continuar impresión",
+    customClass: {
+      popup: "alert-card",
+      title: "swal-font",
+      confirmButton: "my-confirm-btn"
+    },
+    buttonsStyling: false,
+    allowOutsideClick: false,
+    allowEscapeKey: false
+  });
+}
+
+// 3.3) Confirmación final
+async function confirmarImpresionExitosa(total) {
+  return Swal.fire({
+    icon: "success",
+    title: "🎉 ¡Boletos impresos!",
+    text: `Se imprimieron ${total} boletos correctamente.`,
+    confirmButtonText: "Finalizar",
+    customClass: {
+      popup: "alert-card",
+      title: "swal-font",
+      confirmButton: "my-confirm-btn"
+    },
+    buttonsStyling: false
+  });
 }
 
 function generarTokenNumerico() {

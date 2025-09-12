@@ -552,3 +552,58 @@ td {
 .swal-font {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
+
+/* Selector de cantidad coherente con estilo Pullman */
+.cantidad-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(60px, 1fr));
+  gap: 15px;
+  justify-items: center;
+  margin-top: 20px;
+}
+
+.cantidad-btn {
+  font: normal normal bold 22px Arial;
+  padding: 12px 0;
+  width: 80px;
+  height: 50px;
+  border-radius: 24px;
+  border: 3px solid #ff5600;      /* Naranja Pullman */
+  background: #fff5f0;            /* Fondo claro */
+  color: #ff5600;                 /* Texto naranja */
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cantidad-btn:hover,
+.cantidad-btn.selected {
+  background: #ff5600;           /* Fondo naranja */
+  color: #ffffff;                /* Texto blanco */
+}
+
+.cantidad-manual {
+  margin-top: 20px;
+  font: normal normal bold 20px Arial;
+  text-align: center;
+  width: 120px;
+  height: 45px;
+  border: 3px solid #bce0fd;     /* Azul Pullman */
+  border-radius: 20px;
+  color: #2699fb;
+}
+
+.my-cancel-btn {
+  width: 200px;
+  font: normal normal bold 30px Arial;
+  color: #ff5600;                         /* Texto naranja */
+  border: 5px solid #ffd0b0;              /* Borde más claro */
+  background: #ffe5d6 0% 0% no-repeat padding-box; /* Fondo suave */
+  box-shadow: inset 3px 3px 6px #ffffff88, 0px 10px 10px #0000000d;
+  border-radius: 24px;
+  cursor: pointer;
+}
+
+.my-cancel-btn:active {
+  transform: scale(0.96);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
