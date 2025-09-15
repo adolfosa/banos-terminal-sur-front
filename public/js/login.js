@@ -148,26 +148,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Función para cerrar sesión
 function cerrarSesion() {
-  fetch('http://localhost:3000/api/logout')
-    .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        sessionStorage.clear(); 
-        window.location.href = '/login.html';
-      } else {
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'No se pudo cerrar sesión correctamente.'
-        });
-      }
-    })
-    .catch(err => {
-      console.error('Error al cerrar sesión:', err);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'Error al cerrar sesión.'
-      });
+  try {
+    // Limpiar sessionStorage y localStorage
+    sessionStorage.clear();
+    localStorage.clear();
+
+    // Redirigir al login
+    window.location.href = '/login.html';
+  } catch (err) {
+    console.error('Error al cerrar sesión:', err);
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: 'Ocurrió un problema al cerrar sesión.'
     });
+  }
 }

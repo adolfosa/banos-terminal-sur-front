@@ -675,7 +675,6 @@ $(document).ready(function () {
               const { PDFDocument, StandardFonts } = PDFLib;
               await imprimirCopiaCierre(payload.datosImpresion);
 
-
               // 🔹 Limpiar estado de la caja
               localStorage.removeItem('id_aperturas_cierres');
               localStorage.removeItem('estado_caja');
@@ -713,6 +712,9 @@ $(document).ready(function () {
                 text: 'Caja cerrada correctamente.',
                 timer: 2000,
                 showConfirmButton: false
+              }).then(() => {
+                // ✅ Al finalizar todo, cerrar sesión
+                cerrarSesion();
               });
             } else {
               Swal.fire({
