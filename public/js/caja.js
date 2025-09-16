@@ -133,15 +133,19 @@ $(document).ready(function () {
           return;
         }
 
-        const c = resCaja;
-        const fecha = new Date(c.fecha_apertura);
-        const dia = String(fecha.getDate()).padStart(2, '0');
-        const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-        const anio = fecha.getFullYear();
-        const fechaFormateada = `${dia}-${mes}-${anio}`;
+        // ✅ Tomar fecha del backend directamente
+        let fechaFormateada = "--/--/----";
+        if (resCaja.fecha_apertura) {
+          // Si viene con hora incluida, tomar solo la parte YYYY-MM-DD
+          const soloFecha = resCaja.fecha_apertura.split("T")[0];
+          const [anio, mes, dia] = soloFecha.split("-");
+          fechaFormateada = `${dia}-${mes}-${anio}`;
+        }
+
+        const horaServidor = resCaja.hora_apertura || "--:--:--";
 
         // Asegurar que el monto inicial es un número válido
-        const montoInicial = parseFloat(c.monto_inicial) || 0;
+        const montoInicial = parseFloat(resCaja.monto_inicial) || 0;
 
         // Obtener el usuario desde sessionStorage
         const usuario = JSON.parse(sessionStorage.getItem('usuario') || '{}');
@@ -152,8 +156,8 @@ $(document).ready(function () {
             <div class="card-body">
               <h5 class="card-title mb-2">Caja Abierta por: ${nombreUsuario}</h5>
               <p class="mb-1"><strong>N° Caja:</strong> ${numeroCaja}</p>
-              <p class="mb-1"><strong>Fecha:</strong> ${fechaFormateada} &nbsp; <strong>Hora:</strong> ${c.hora_apertura}</p>
-              <p class="mb-0"><strong>Monto Inicial:</strong> $${montoInicial.toLocaleString()}</p>
+              <p class="mb-1"><strong>Fecha:</strong> ${fechaFormateada} &nbsp; <strong>Hora:</strong> ${horaServidor}</p>
+              <p class="mb-0"><strong>Monto Inicial:</strong> $${montoInicial.toLocaleString('es-CL')}</p>
             </div>
           </div>
         `;
@@ -343,11 +347,6 @@ $(document).ready(function () {
         // Obtener número de caja
         const numero_caja = await obtenerNumeroCaja();
 
-        // Obtener fecha y hora actual
-        const now = new Date();
-        const fecha_apertura = now.toISOString().split('T')[0];
-        const hora_apertura = now.toTimeString().split(' ')[0];
-
         // Hacer la petición para abrir la caja
         $.ajax({
           url: 'https://backend-banios.dev-wit.com/api/aperturas-cierres/abrir',
@@ -357,8 +356,6 @@ $(document).ready(function () {
           data: JSON.stringify({
             numero_caja: numero_caja,
             id_usuario_apertura: id_usuario_apertura,
-            fecha_apertura: fecha_apertura,
-            hora_apertura: hora_apertura,
             monto_inicial: monto,
             observaciones: observaciones,
             estado: 'abierta'
@@ -368,11 +365,15 @@ $(document).ready(function () {
           },
           success: function (res) {
             if (res.success) {
-              // Almacenar los datos en localStorage
+              // Guardar datos en localStorage
               localStorage.setItem('id_aperturas_cierres', res.id);
               localStorage.setItem('estado_caja', 'abierta');
               localStorage.setItem('numero_caja', res.numero_caja);
-              localStorage.setItem('id_usuario_apertura', id_usuario_apertura); // ← AQUÍ SE AGREGA
+              localStorage.setItem('id_usuario_apertura', id_usuario_apertura);
+
+              // ✅ Usar la fecha y hora que vienen del backend
+              console.log("Fecha servidor:", res.fecha_apertura);
+              console.log("Hora servidor:", res.hora_apertura);
 
               $('#modalInicio').modal('hide');
 
