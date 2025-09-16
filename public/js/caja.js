@@ -185,11 +185,15 @@ $(document).ready(function () {
 
             // En la función que crea las filas de la tabla, cambia:
             const filas = resMovimientos.movimientos.map(m => {
-              const fecha = new Date(m.fecha);
-              const dia = String(fecha.getDate()).padStart(2, '0');
-              const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-              const anio = fecha.getFullYear();
-              const fechaFormateada = `${dia}-${mes}-${anio}`;
+              // ✅ Usar fecha y hora que entrega el backend
+              let fechaFormateada = "--/--/----";
+              if (m.fecha) {
+                const soloFecha = m.fecha.split("T")[0]; // si viene en formato ISO
+                const [anio, mes, dia] = soloFecha.split("-");
+                fechaFormateada = `${dia}-${mes}-${anio}`;
+              }
+
+              const horaServidor = m.hora || "--:--:--";
 
               // Determinar clase CSS según el tipo de movimiento
               let claseMonto = 'monto';
@@ -197,10 +201,10 @@ $(document).ready(function () {
               let simbolo = '';
 
               if ((m.medio_pago && m.medio_pago.toLowerCase().includes('retiro')) ||
-                (m.nombre_servicio && m.nombre_servicio.toLowerCase().includes('retiro'))) {
+                  (m.nombre_servicio && m.nombre_servicio.toLowerCase().includes('retiro'))) {
                 claseMonto += ' retiro';
                 simbolo = '-';
-                montoMostrar = Math.abs(montoMostrar); // Valor absoluto para mostrar
+                montoMostrar = Math.abs(montoMostrar);
               } else if (m.medio_pago && m.medio_pago.toLowerCase().includes('efectivo')) {
                 claseMonto += ' efectivo';
               } else if (m.medio_pago && (
@@ -215,11 +219,11 @@ $(document).ready(function () {
                 <tr>
                   <td>${m.id}</td>
                   <td>${fechaFormateada}</td>
-                  <td>${m.hora}</td>
+                  <td>${horaServidor}</td>
                   <td>${m.nombre_servicio}</td>
                   <td>${m.medio_pago}</td>
                   <td class="${claseMonto}">${simbolo}$${montoMostrar.toLocaleString('es-CL')}</td>
-                  <td>${m.nombre_usuario}</td>            
+                  <td>${m.nombre_usuario}</td>
                 </tr>
               `;
             }).join('');
