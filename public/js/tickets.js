@@ -163,12 +163,16 @@ async function imprimirTicket({ Codigo, hora, fecha, tipo, valor, qrBase64, foli
     const { PDFDocument, StandardFonts } = PDFLib;
     const pdfDoc = await PDFDocument.create();
 
-    // Formatear fecha DD-MM-YYYY
-    const fechaObj = new Date(fecha);
-    const dia = String(fechaObj.getDate()).padStart(2, "0");
-    const mes = String(fechaObj.getMonth() + 1).padStart(2, "0");
-    const anio = String(fechaObj.getFullYear());
-    const fechaFormateada = `${dia}-${mes}-${anio}`;
+    // ✅ Usar la fecha del servidor directamente
+    let fechaFormateada = "--/--/----";
+    if (movimiento.fecha) {
+      const soloFecha = movimiento.fecha.split("T")[0]; // si viene en formato ISO
+      const [anio, mes, dia] = soloFecha.split("-");
+      fechaFormateada = `${dia}-${mes}-${anio}`;
+    }
+
+    const horaServidor = movimiento.hora || "--:--:--";
+
 
     // --- Configuración de página ---
     const lineHeight = 15;
@@ -223,7 +227,7 @@ async function imprimirTicket({ Codigo, hora, fecha, tipo, valor, qrBase64, foli
       "---------------------------------------------",
       `Nº boleta : ${numeroBoleta}`,
       `Fecha : ${fechaFormateada}`,
-      `Hora  : ${hora}`,
+      `Hora  : ${horaServidor}`,
       `Tipo  : ${tipo}`,
       valor ? `Monto : $${Number(valor).toLocaleString("es-CL")}` : null,
       "---------------------------------------------",
