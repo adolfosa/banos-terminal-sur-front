@@ -163,16 +163,15 @@ async function imprimirTicket({ Codigo, hora, fecha, tipo, valor, qrBase64, foli
     const { PDFDocument, StandardFonts } = PDFLib;
     const pdfDoc = await PDFDocument.create();
 
-    // ✅ Usar la fecha del servidor directamente
+    // ✅ Usar fecha y hora del servidor directamente desde parámetros
     let fechaFormateada = "--/--/----";
-    if (movimiento.fecha) {
-      const soloFecha = movimiento.fecha.split("T")[0]; // si viene en formato ISO
+    if (fecha) {
+      const soloFecha = fecha.split("T")[0]; // por si viene en formato ISO
       const [anio, mes, dia] = soloFecha.split("-");
       fechaFormateada = `${dia}-${mes}-${anio}`;
     }
 
-    const horaServidor = movimiento.hora || "--:--:--";
-
+    const horaServidor = hora || "--:--:--";
 
     // --- Configuración de página ---
     const lineHeight = 15;
