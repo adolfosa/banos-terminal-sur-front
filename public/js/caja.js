@@ -1048,12 +1048,10 @@ $(document).ready(function () {
       const { PDFDocument, StandardFonts } = PDFLib;
       const pdfDoc = await PDFDocument.create();
 
-      // --- Datos base ---
-      const fechaObj = new Date(datosImpresion.fecha);
-      const dia = String(fechaObj.getDate()).padStart(2, "0");
-      const mes = String(fechaObj.getMonth() + 1).padStart(2, "0");
-      const anio = String(fechaObj.getFullYear());
-      const fechaFormateada = `${dia}-${mes}-${anio}`;
+      // --- Usar fecha y hora que entrega el servidor ---
+      const fechaFormateada = datosImpresion.fecha;  // viene ya en formato dd-mm-yyyy
+      const horaServidor   = datosImpresion.hora;    // viene ya en formato HH:MM:SS
+
 
       // --- Contenido ---
       const detalle = [
@@ -1062,7 +1060,7 @@ $(document).ready(function () {
         "---------------------------------------------------",
         `Código: ${datosImpresion.codigo}`,
         `Fecha:  ${fechaFormateada}`,
-        `Hora:   ${datosImpresion.hora}`,
+        `Hora:   ${horaServidor}`,
         `Caja:   ${datosImpresion.nombre_caja}`,
         `Cajero: ${datosImpresion.nombre_cajero}`,
         `Autorizado por: ${datosImpresion.nombre_usuario}`,
